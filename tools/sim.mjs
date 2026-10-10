@@ -7,7 +7,7 @@ import { upgradeCost, multValue } from '../src/game/economy-rules.js';
 function run(level, up, pct = 100, steer = 0) {
   const L = makeLayout(level), t = tuning(up), car = createCar();
   car.v = launchSpeed(t, pct);
-  const world = { ground: (x, z) => L.ground(x, z, t.mu), rampAt: L.rampAt };
+  const world = { ground: (x, z) => L.ground(x, z, t.mu), rampAt: L.rampAt, barrier: L.barrier };
   const ev = [];
   for (let i = 0; i < 60 * 600 && !car.ended; i++) {
     if (!car.air && L.plateAt(car.x, car.z) && !car._plate) { car.v += 5; car._plate = true; }

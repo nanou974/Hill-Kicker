@@ -19,6 +19,7 @@ export class World {
 
   buildStatic() {
     const L = this.L;
+    for (const f of L.forks) this.root.add(this.buildRidge(f));
     // Lanceur au départ, sur une petite plateforme
     const y0 = L.ground(0, 6, 1).h;
     this.start = new THREE.Group(); this.root.add(this.start);
@@ -35,6 +36,44 @@ export class World {
     const banner = new THREE.Mesh(new THREE.BoxGeometry(29, 2.4, 0.4), A.mat(0xffffff, { map: ck })); banner.position.y = 8.6; gate.add(banner);
     const line = new THREE.Mesh(new THREE.PlaneGeometry(2 * 22, 2.5), new THREE.MeshStandardMaterial({ map: ck, roughness: 0.9 })); line.rotation.x = -Math.PI / 2; line.position.y = 0.06; gate.add(line);
     gate.position.set(0, yf, zf); gate.traverse(o => { if (o.isMesh) o.castShadow = true; }); this.root.add(gate);
+  }
+
+  // Colline rocheuse qui sépare les deux chemins d'une bifurcation
+  buildRidge(f) {
+    const L = this.L, g = new THREE.Group();
+    const nx = 16, len = f.z0 - f.z1, nz = Math.ceil(len / 2.5);
+    const pos = [], col = [], idx = [], c = new THREE.Color();
+    for (let iz = 0; iz <= nz; iz++) for (let ix = 0; ix <= nx; ix++) {
+      const t = iz / nz, z = f.z0 - t * len;
+      const hw = L.ridgeHalf(f, z) + 0.6, u = ix / nx * 2 - 1;
+      const x = f.cx + u * (hw + 0.3) + (hash(ix, iz + 91) - 0.5) * 0.5;
+      const prof = Math.max(0, 1 - u * u);
+      const hgt = f.h * Math.pow(Math.sin(Math.PI * t), 0.55) * Math.pow(prof, 0.7) * (0.85 + hash(ix * 5, iz * 7) * 0.3);
+      const y = L.ground(x, z, 1).h - 0.4 + hgt;
+      pos.push(x, y, z);
+      const k = hgt / f.h, n = hash(ix * 3, iz * 11) * 0.06;
+      if (k > 0.78) c.setRGB(0.95 + n, 0.96 + n, 0.98, THREE.SRGBColorSpace);           // sommet clair
+      else if (k > 0.3) c.setRGB(0.55 + n, 0.57 + n, 0.60 + n, THREE.SRGBColorSpace);    // roche
+      else c.setRGB(0.36 + n, 0.64 + n, 0.27 + n * 0.5, THREE.SRGBColorSpace);           // herbe
+      col.push(c.r, c.g, c.b);
+    }
+    for (let iz = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++) { const a = iz * (nx + 1) + ix, b = a + 1, d = a + nx + 1, e = d + 1; idx.push(a, d, b, b, d, e); }
+    let geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    geo.setIndex(idx); geo = geo.toNonIndexed(); geo.computeVertexNormals();
+    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9, envMapIntensity: 0, side: THREE.DoubleSide }));
+    m.castShadow = true; m.receiveShadow = true; g.add(m);
+    // Quelques sapins et rochers sur les flancs, et un panneau à l'entrée
+    const r = A.rng(900 + Math.round(-f.z0));
+    for (let k = 0; k < 14; k++) {
+      const t = 0.12 + r() * 0.76, z = f.z0 - t * len, side = r() > 0.5 ? 1 : -1, hw = L.ridgeHalf(f, z);
+      const x = f.cx + side * hw * (0.55 + r() * 0.25), u = (x - f.cx) / (hw + 0.6);
+      const y = L.ground(x, z, 1).h - 0.4 + f.h * Math.pow(Math.sin(Math.PI * t), 0.55) * Math.pow(Math.max(0, 1 - u * u), 0.7) * 0.85;
+      const o = k % 3 ? A.pine(1.2 + r() * 0.8) : A.rock(0.6 + r() * 0.7); o.position.set(x, y - 0.2, z); g.add(o);
+    }
+    const sg = A.sign('<   >', 1.6); sg.position.set(f.cx, L.ground(f.cx, f.z0 + 9, 1).h, f.z0 + 9); g.add(sg);
+    return g;
   }
 
   // Charge les tronçons proches de la voiture, décharge les autres

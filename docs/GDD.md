@@ -42,6 +42,10 @@ La piste est vue de derrière la voiture. Elle est large (4 à 5 voitures de fro
 
 **Rampes à booster** : chaque rampe porte une bande d'accélération lumineuse. La poussée est donnée dès que la voiture touche la rampe (+12 m/s, soit environ +43 km/h), avec un effet de vitesse à l'écran ; le saut qui suit est long et haut, idéal pour les cascades.
 
+**Bifurcations** : 3 à 4 par niveau. Une colline rocheuse infranchissable sépare la piste en deux chemins sur 150 à 200 m. D'un côté le chemin des pièces (pièces d'or et rampe à booster), de l'autre le chemin rapide (goudron et plaques boost) ; le côté change d'une bifurcation à l'autre. Si la voiture arrive droit sur la colline, elle glisse vers le chemin le plus proche sans perdre de vitesse. Un panneau annonce chaque bifurcation.
+
+**Placement** : la première rampe est à au moins 140 m du lanceur ; aucune pièce n'est posée sur une rampe ni juste devant.
+
 **Objets cassables** : caisses et bottes de foin posées sur la piste. Percutés, ils volent en éclats sans ralentir la voiture (la règle « seul le relief ralentit » est conservée).
 
 **Décors du niveau 1** : arbres, sapins, rochers, buissons et clôtures en bordure, vaches, granges, moulins, fleurs, panneaux de distance tous les 250 m et arches colorées au-dessus de la piste.

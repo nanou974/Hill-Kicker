@@ -45,6 +45,9 @@ export function step(car, world, t, input, dt, events) {
   car.vx += (targetVx - car.vx) * Math.min(1, dt * 6);
   car.x += car.vx * dt;
   if (Math.abs(car.x) > TRACK_HALF) { car.x = Math.sign(car.x) * TRACK_HALF; car.vx = 0; }
+  // Colline d'une bifurcation : la voiture glisse sur le côté le plus proche, sans perdre de vitesse
+  const bar = world.barrier && world.barrier(car.x, car.z);
+  if (bar) { const side = Math.sign(car.x - bar.cx) || (car.vx >= 0 ? 1 : -1); car.x = bar.cx + side * bar.hw; car.vx = 0; }
 
   if (!car.air) {
     // Rampe : la voiture grimpe le plan incliné puis décolle au sommet

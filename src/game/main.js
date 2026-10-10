@@ -192,7 +192,7 @@ $('b-nextlevel').addEventListener('click', () => { show('p-level', false); build
 function backHome() { buildLevel(); setScreen('home'); refreshHome(); }
 
 function runStep(dt) {
-  const worldPhys = { ground: (x, z) => layout.ground(x, z, tune.mu), rampAt: layout.rampAt };
+  const worldPhys = { ground: (x, z) => layout.ground(x, z, tune.mu), rampAt: layout.rampAt, barrier: layout.barrier };
   const events = [];
   const sub = 4, h = dt / sub;
   for (let i = 0; i < sub; i++) {
