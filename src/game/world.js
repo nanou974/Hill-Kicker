@@ -3,8 +3,10 @@ import * as THREE from 'three';
 import * as A from '../assets3d.js';
 import { LEVEL_LENGTH } from './layout.js';
 import { buildPassage } from './passages.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const CHUNK = 150, AHEAD = 3, BEHIND = 1;
+const BUDGET_MS = 5; // temps de construction de décor autorisé par image : les tronçons lointains se fabriquent par petits morceaux
 const WIDTH = 240, STEP = 2.5;
 
 function hash(ix, iz) { let h = (ix * 374761393 + iz * 668265263) ^ 0x5bd1e995; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
@@ -20,9 +22,9 @@ export class World {
 
   buildStatic() {
     const L = this.L;
-    for (const f of L.forks) this.root.add(this.buildRidge(f));
+    for (const f of L.forks) this.root.add(mergeStatic(this.buildRidge(f)));
     // Passages étroits (portails, arches, tunnels, grottes, gorges, ruines)
-    for (const p of L.passages) this.root.add(buildPassage(L, p));
+    for (const p of L.passages) this.root.add(mergeStatic(buildPassage(L, p)));
     // Lanceur au départ, sur une petite plateforme
     const y0 = L.ground(0, 6, 1).h;
     this.start = new THREE.Group(); this.root.add(this.start);
@@ -89,8 +91,18 @@ export class World {
   // Charge les tronçons proches de la voiture, décharge les autres
   update(carZ, time, dt = 0) {
     const ci = Math.floor(-carZ / CHUNK);
-    for (let i = ci - BEHIND; i <= ci + AHEAD; i++) if (i >= -1 && !this.chunks.has(i) && i * CHUNK < LEVEL_LENGTH + CHUNK) this.chunks.set(i, this.buildChunk(i));
+    this.pending ??= new Map();
+    for (let i = ci - BEHIND; i <= ci + AHEAD; i++) {
+      if (i < -1 || this.chunks.has(i) || i * CHUNK >= LEVEL_LENGTH + CHUNK) continue;
+      if (!this.pending.has(i)) { const g = new THREE.Group(); this.pending.set(i, { g, it: this.chunkSteps(i, g) }); }
+      // Tronçon où se trouve la voiture (ou juste devant) : il doit exister tout de suite
+      if (i <= ci + 1) this.finish(i, Infinity);
+    }
+    // Les tronçons plus lointains avancent un peu à chaque image, sans saccade
+    const t0 = performance.now();
+    for (const i of [...this.pending.keys()].sort((a, b) => a - b)) { if (!this.finish(i, t0 + BUDGET_MS)) break; }
     for (const [i, g] of this.chunks) if (i < ci - BEHIND || i > ci + AHEAD) { this.root.remove(g); g.traverse(o => { if (o.geometry) o.geometry.dispose(); }); this.chunks.delete(i); }
+    for (const i of [...this.pending.keys()]) if (i < ci - BEHIND || i > ci + AHEAD) this.pending.delete(i);
     // Animation des pièces et gemmes
     for (const m of this.coinMeshes) if (m.parent) { m.rotation.y = time * 2.4 + m.userData.phase; }
     for (const m of this.gemMeshes) if (m.parent) { m.rotation.y = time * 1.6; m.position.y = m.userData.y + Math.sin(time * 2.5) * 0.15; if (m.children[0]) m.children[0].visible = m.position.z < carZ - 25; } // la colonne de lumière s'efface quand on arrive dessus
@@ -110,8 +122,19 @@ export class World {
     this.flying.push({ m: prop.mesh, vx, vy, vz, sx: (Math.random() - 0.5) * 14, sz: (Math.random() - 0.5) * 14, t: 0 });
   }
 
-  buildChunk(i) {
-    const L = this.L, g = new THREE.Group();
+  // Fait avancer la construction d'un tronçon jusqu'à l'heure limite ; renvoie vrai s'il est terminé
+  finish(i, deadline) {
+    const p = this.pending.get(i); if (!p) return true;
+    while (performance.now() < deadline) {
+      if (p.it.next().done) { this.root.add(p.g); this.chunks.set(i, p.g); this.pending.delete(i); return true; }
+    }
+    return false;
+  }
+  buildChunk(i) { const g = new THREE.Group(); for (const _ of this.chunkSteps(i, g)); this.root.add(g); return g; }
+
+  // Construction d'un tronçon en plusieurs étapes (générateur) : terrain, décor, fusion du décor, objets de la piste
+  *chunkSteps(i, g) {
+    const L = this.L;
     const zTop = -i * CHUNK + (i === -1 ? 0 : 0), z0 = -i * CHUNK, z1 = -(i + 1) * CHUNK;
     // Terrain : grille alignée sur une trame globale pour que les tronçons se raccordent
     const nx = Math.round(WIDTH / STEP), nz = Math.round(CHUNK / STEP);
@@ -142,17 +165,20 @@ export class World {
     geo.setIndex(idx); geo = geo.toNonIndexed(); geo.computeVertexNormals();
     const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95, envMapIntensity: 0 }));
     mesh.receiveShadow = true; g.add(mesh);
+    yield;
 
-    // Décors sur les bas-côtés
+    // Décors sur les bas-côtés : construits dans un groupe à part, puis fusionnés en quelques gros objets
+    const deco = new THREE.Group();
     const r = A.rng(5000 + L.level * 131 + i);
     const ground = (x, z) => L.ground(x, z, 1).h;
-    const put = (o, x, z, dy = 0, rot = r() * 6) => { o.position.set(x, ground(x, z) + dy, z); o.rotation.y = rot; g.add(o); return o; };
+    const put = (o, x, z, dy = 0, rot = r() * 6) => { o.position.set(x, ground(x, z) + dy, z); o.rotation.y = rot; deco.add(o); return o; };
     // Arbres, sapins, rochers et bottes de foin, plus denses près de la piste
     for (let k = 0; k < 90; k++) {
       const side = r() > 0.5 ? 1 : -1, x = side * (L.opt.half + 3 + Math.pow(r(), 2.2) * 65), z = z0 - r() * CHUNK;
       const t = r(); let o;
       if (t < 0.42) o = A.tree(1.2 + r() * 1.4, k % 4); else if (t < 0.66) o = A.pine(1.3 + r() * 1.2); else if (t < 0.82) o = A.rock(0.6 + r() * 1.4); else o = A.hay(1);
       put(o, x, z, -0.1);
+      if (k % 30 === 29) yield;
     }
     // Buissons en bordure de piste
     for (let k = 0; k < 36; k++) { const side = r() > 0.5 ? 1 : -1; put(A.bush(0.8 + r() * 0.8, k % 4), side * (L.opt.half + 0.8 + r() * 3), z0 - r() * CHUNK); }
@@ -161,31 +187,70 @@ export class World {
     // Rochers et fleurs dans les champs, quelques vaches, une grange de temps en temps
     for (let k = 0; k < 4; k++) { const side = r() > 0.5 ? 1 : -1; const x0 = side * (L.opt.half + 10 + r() * 18), zc = z0 - r() * CHUNK; for (let q = 0; q < 2 + Math.floor(r() * 3); q++) put(A.cow(1), x0 + (r() - 0.5) * 8, zc + (r() - 0.5) * 8); }
     if (i % 2 === 0) { const side = r() > 0.5 ? 1 : -1; put(A.barn(1), side * (L.opt.half + 22 + r() * 14), z0 - r() * CHUNK, 0, side > 0 ? -Math.PI / 2 : Math.PI / 2); }
-    for (let k = 0; k < 10; k++) { const side = r() > 0.5 ? 1 : -1; const f = A.flowers(10, 4, 0, [0xF48FB1, 0xFFE27A, 0xFFFFFF, 0xB794F4][k % 4]); put(f, side * (L.opt.half + 3 + r() * 20), z0 - r() * CHUNK, 0.1); }
+    for (let k = 0; k < 10; k++) { const side = r() > 0.5 ? 1 : -1; const f = A.flowers(10, 4, 0, [0xF48FB1, 0xFFE27A, 0xFFFFFF, 0xB794F4][k % 4]); f.traverse(o => { o.castShadow = false; }); put(f, side * (L.opt.half + 3 + r() * 20), z0 - r() * CHUNK, 0.1); }
+    yield;
     // Panneaux de distance tous les 250 m
     for (let d = 250; d < LEVEL_LENGTH; d += 250) if (-d <= z0 && -d > z1) put(A.sign(`${d} m`, 1.3), (d / 250) % 2 ? L.opt.half + 2.5 : -(L.opt.half + 2.5), -d, 0, 0);
     // Arches au-dessus de la piste
     for (const a of L.arches) if (a.z <= z0 && a.z > z1) { const m = A.arch(2 * L.opt.half + 4, a.color); put(m, 0, a.z, -0.2, 0); }
-    if (i % 3 === 1) { const wm = A.windmill(1.4); const x = (r() > 0.5 ? 1 : -1) * (L.opt.half + 26 + r() * 20), z = z0 - r() * CHUNK; wm.position.set(x, L.ground(x, z, 1).h - 0.4, z); wm.rotation.y = r() * 6; g.add(wm); }
+    if (i % 3 === 1) { const wm = A.windmill(1.4); const x = (r() > 0.5 ? 1 : -1) * (L.opt.half + 26 + r() * 20), z = z0 - r() * CHUNK; wm.position.set(x, L.ground(x, z, 1).h - 0.4, z); wm.rotation.y = r() * 6; deco.add(wm); }
     for (let k = 0; k < 40; k++) {
       const x = (r() - 0.5) * 2 * (L.opt.half - 1), z = z0 - r() * CHUNK;
       const tf = new THREE.Group();
       for (let q = 0; q < 3; q++) { const cn = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.45 + r() * 0.3, 4), A.mat([0x3F8F2E, 0x56A63A, 0x2F7A2E][(k + q) % 3])); cn.position.set((r() - 0.5) * 0.3, 0.2, (r() - 0.5) * 0.3); tf.add(cn); }
-      tf.position.set(x, L.ground(x, z, 1).h, z); g.add(tf);
+      tf.position.set(x, L.ground(x, z, 1).h, z); deco.add(tf); // touffes d'herbe : pas d'ombre (trop petites)
     }
 
     const inChunk = (z) => z <= z0 && z > z1;
-    for (const p of L.ramps) if (inChunk(p.z)) { const m = A.ramp(p.w, p.l, p.h, p.boost); m.position.set(p.x, L.ground(p.x, p.z, 1).h - 0.05, p.z); m.rotation.x = slope(L, p.x, p.z); g.add(m); }
-    for (const p of L.plates) if (inChunk(p.z)) { const m = A.boostPad(p.w, p.l); m.position.set(p.x, L.ground(p.x, p.z, 1).h + 0.06, p.z); m.rotation.x = slope(L, p.x, p.z); g.add(m); }
+    for (const p of L.ramps) if (inChunk(p.z)) { const m = A.ramp(p.w, p.l, p.h, p.boost); m.position.set(p.x, L.ground(p.x, p.z, 1).h - 0.05, p.z); m.rotation.x = slope(L, p.x, p.z); deco.add(m); }
+    for (const p of L.plates) if (inChunk(p.z)) { const m = A.boostPad(p.w, p.l); m.position.set(p.x, L.ground(p.x, p.z, 1).h + 0.06, p.z); m.rotation.x = slope(L, p.x, p.z); deco.add(m); }
     for (const cn of L.coins) if (inChunk(cn.z) && !cn.taken) { const m = A.coin(cn.kind, cn.kind === 'gold' ? 1.1 : cn.kind === 'silver' ? 1 : 0.9); m.position.set(cn.x, L.ground(cn.x, cn.z, 1).h + 0.95, cn.z); m.userData.phase = cn.z * 0.3; m.userData.ref = cn; cn.mesh = m; g.add(m); this.coinMeshes.push(m); }
-    for (const o of L.obstacles) if (inChunk(o.z) && !o.own) { const m = o.kind === 'statue' ? A.statue(1) : A.rockShape(o.shape, o.seed); m.position.set(o.x, L.ground(o.x, o.z, 1).h - 0.05, o.z); m.rotation.y = o.rot; g.add(m); }
+    for (const o of L.obstacles) if (inChunk(o.z) && !o.own) { const m = o.kind === 'statue' ? A.statue(1) : A.rockShape(o.shape, o.seed); m.position.set(o.x, L.ground(o.x, o.z, 1).h - 0.05, o.z); m.rotation.y = o.rot; deco.add(m); }
+    yield;
+    // Tout le décor immobile du tronçon devient quelques gros objets (un par matériau) : beaucoup moins d'ordres de dessin
+    g.add(mergeStatic(deco));
+    yield;
     for (const b of L.props) if (inChunk(b.z) && !b.hit) { const m = b.kind === 'crate' ? A.crate(1) : A.hayBlock(1); m.position.set(b.x, L.ground(b.x, b.z, 1).h, b.z); m.rotation.y = b.rot; b.mesh = m; g.add(m); }
     for (const gm of L.gems) if (inChunk(gm.z) && !gm.taken) { const m = A.gem(1); const y = L.ground(gm.x, gm.z, 1).h + 1.4; m.position.set(gm.x, y, gm.z); m.userData.y = y; m.add(A.gemBeam()); gm.mesh = m; g.add(m); this.gemMeshes.push(m); }
-    this.root.add(g);
-    return g;
   }
 
   take(item) { if (item.mesh && item.mesh.parent) item.mesh.parent.remove(item.mesh); item.taken = true; }
+}
+
+// ---------- Fusion du décor immobile ----------
+// Regroupe les objets qui partagent le même aspect (couleur, texture…) en un seul objet 3D.
+function matKey(m) {
+  return [m.type, m.color && m.color.getHexString(), m.emissive && m.emissive.getHexString(), m.emissiveIntensity, m.roughness, m.metalness, m.flatShading, m.map && m.map.uuid,
+    m.transparent, m.opacity, m.vertexColors, m.side, m.envMapIntensity, m.depthWrite].join('|');
+}
+function mergeStatic(src) {
+  src.updateMatrixWorld(true);
+  const out = new THREE.Group(), buckets = new Map(), alone = [];
+  src.traverse(o => {
+    if (!o.isMesh) return;
+    if (Array.isArray(o.material) || o.isInstancedMesh) { alone.push(o); return; }
+    const key = matKey(o.material) + '|' + (o.castShadow ? 1 : 0);
+    if (!buckets.has(key)) buckets.set(key, { mat: o.material, cast: o.castShadow, list: [] });
+    buckets.get(key).list.push(o);
+  });
+  for (const b of buckets.values()) {
+    const needUv = !!b.mat.map, needCol = !!b.mat.vertexColors;
+    const geos = [];
+    for (const o of b.list) {
+      let g2 = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+      for (const name of Object.keys(g2.attributes)) if (!(name === 'position' || name === 'normal' || (needUv && name === 'uv') || (needCol && name === 'color'))) g2.deleteAttribute(name);
+      if (!g2.attributes.normal) g2.computeVertexNormals();
+      if (needUv && !g2.attributes.uv) g2.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g2.attributes.position.count * 2), 2));
+      for (const k of Object.keys(g2.morphAttributes)) delete g2.morphAttributes[k];
+      g2.clearGroups(); g2.applyMatrix4(o.matrixWorld); geos.push(g2);
+    }
+    const merged = geos.length === 1 ? geos[0] : mergeGeometries(geos, false);
+    if (!merged) { for (const o of b.list) alone.push(o); continue; }
+    const m = new THREE.Mesh(merged, b.mat); m.castShadow = b.cast; m.receiveShadow = true; out.add(m);
+  }
+  // Objets à plusieurs matériaux : gardés tels quels, à leur place
+  for (const o of alone) { o.matrixAutoUpdate = false; o.matrix.copy(o.matrixWorld); out.add(o); }
+  return out;
 }
 
 function slope(L, x, z) { const e = 0.5; return Math.atan2(L.ground(x, z - e, 1).h - L.ground(x, z + e, 1).h, 2 * e); }

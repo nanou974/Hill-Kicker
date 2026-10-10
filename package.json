@@ -1,6 +1,6 @@
 {
   "name": "hill-kicker",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "private": true,
   "description": "Hill Kicker – jeu mobile 3D low-poly : lance ta voiture depuis le tapis, dévale les pentes, améliore, recommence.",
   "type": "module",

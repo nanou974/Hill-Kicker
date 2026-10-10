@@ -3,7 +3,7 @@
 html, body { margin: 0; height: 100%; background: #0B1428; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
 body { font-family: 'Lilita One', sans-serif; color: #fff; }
 button { font-family: inherit; color: inherit; cursor: pointer; }
-#app { position: relative; margin: 0 auto; width: 100%; max-width: 480px; height: 100dvh; overflow: hidden; background: #8FD0F2; }
+#app { position: relative; margin: 0 auto; width: 100%; height: 100dvh; overflow: hidden; background: #8FD0F2; }
 #gl { position: absolute; inset: 0; }
 #gl canvas { display: block; width: 100%; height: 100%; }
 #app.shake #gl { animation: shake 0.09s infinite; }
@@ -156,3 +156,9 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 .panel .code-in { width: 100%; box-sizing: border-box; font-family: 'Nunito', monospace; font-weight: 900; font-size: 15px; text-transform: uppercase; border: 3px solid #1B2340; border-radius: 10px; padding: 8px 10px; pointer-events: auto; }
 .panel .msg { min-height: 18px; color: #FFE14D; }
 .panel .msg.err { color: #FF8A8F; }
+
+/* Grands écrans (tablettes) : la 3D occupe tout l'écran, l'interface est agrandie proportionnellement (--ui calculé dans main.js) */
+.screen, .hud-top, .panel, .garage, .trick { zoom: var(--ui, 1); }
+/* Compteur d'images par seconde */
+.fps { position: absolute; left: 50%; transform: translateX(-50%); top: calc(2px + env(safe-area-inset-top)); z-index: 30; padding: 1px 8px; border-radius: 8px; background: rgba(11,20,40,0.6); font-family: 'Nunito', monospace; font-weight: 900; font-size: 12px; pointer-events: none; }
+.fps.low { color: #FF8A8F; }

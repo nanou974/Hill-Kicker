@@ -29,7 +29,7 @@ const ICONS = { pneus: 'i_pneus', susp: 'i_susp', lanceur: 'i_lanceur', mult: 'i
 // ---------- rendu ----------
 const host = $('gl');
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); // au-delà, la différence ne se voit pas mais coûte très cher sur tablette
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.98;
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -54,6 +54,8 @@ let carHeight = 1.5; // hauteur du véhicule choisi : la caméra monte pour les 
 
 function resize() {
   const w = host.clientWidth, h = host.clientHeight;
+  // Interface agrandie sur les grands écrans (calibrée pour un téléphone de 420 × 860)
+  document.documentElement.style.setProperty('--ui', Math.max(1, Math.min(w / 420, h / 860, 2)).toFixed(3));
   renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
@@ -316,8 +318,16 @@ function updateRunHud() {
 
 // ---------- boucle ----------
 let last = performance.now(), clock = 0, uiTimer = 0;
+// Compteur d'images par seconde (Paramètres) : moyenne sur une demi-seconde
+let fpsOn = false, fpsFrames = 0, fpsTime = 0;
+try { fpsOn = localStorage.getItem('hill-kicker-fps') === '1'; } catch (e) { /* stockage indisponible */ }
+function refreshFpsBtn() { $('b-fps').textContent = fpsOn ? 'FPS : AFFICHÉS' : 'FPS : MASQUÉS'; show('fps', fpsOn); }
+$('b-fps').addEventListener('click', () => { fpsOn = !fpsOn; try { localStorage.setItem('hill-kicker-fps', fpsOn ? '1' : '0'); } catch (e) { /* stockage indisponible */ } refreshFpsBtn(); });
+refreshFpsBtn();
 function frame(now) {
   const raw = Math.min(0.25, (now - last) / 1000); const dt = Math.min(0.05, raw); last = now; clock += dt;
+  if (fpsOn) { fpsFrames++; fpsTime += (now - (frame.prev ?? now)) / 1000; if (fpsTime >= 0.5) { const f = Math.round(fpsFrames / fpsTime); $('fps').textContent = f + ' FPS'; $('fps').classList.toggle('low', f < 45); fpsFrames = 0; fpsTime = 0; } }
+  frame.prev = now;
   if (state === 'launch' && holding && !maxed) { pct = Math.min(100, pct + raw * 62); if (pct >= 100) maxed = true; updateGauge(); }
   if (state === 'launch' && holding && maxed) $('app').classList.add('shake');
   if (state === 'run' && !window.__hk.freeze) { runStep(dt); updateRunHud(); sfx.engineSet(Math.min(1, Math.max(0, car.v) / 40), !car.ended); }

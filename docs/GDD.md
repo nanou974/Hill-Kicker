@@ -135,9 +135,17 @@ Le booster s'active à tout moment pendant la course avec un bouton dédié. Il 
 
 **Début du jeu** : 0 monnaie jaune, 0 monnaie bleue, 0 gemme, aucun coffre disponible ; seulement les 25 vies et la citadine.
 
+## Performances et écrans
+
+- **Décor fusionné** : tout le décor immobile d'un tronçon de 150 m (arbres, buissons, clôtures, herbe, fleurs, rochers, rampes, plaques, passages) est regroupé en un objet par matériau. Environ 350 objets dessinés par image au lieu de 3 600.
+- **Construction progressive** : les tronçons lointains se fabriquent par petits morceaux (5 ms par image au maximum) ; seuls le tronçon de la voiture et le suivant sont construits d'un coup si besoin.
+- **Résolution** limitée à 1,5 fois celle de l'écran ; touffes d'herbe et fleurs sans ombre.
+- **Tablettes et grands écrans** : la 3D occupe tout l'écran (plus de bandes noires) et l'interface s'agrandit proportionnellement (jusqu'à ×2).
+- **Compteur d'images par seconde** activable dans les Paramètres (rouge sous 45 FPS).
+
 ## Paramètres et sauvegarde
 
-**Paramètres** (roue dentée de l'accueil) : curseur de volume de la **musique** et curseur des **effets sonores** (0 à 100, enregistrés sur le téléphone ; à 0 la musique s'arrête complètement), bouton **Sauvegarde**, bouton **Effacer la partie** (deux appuis pour confirmer).
+**Paramètres** (roue dentée de l'accueil) : curseur de volume de la **musique** et curseur des **effets sonores** (0 à 100, enregistrés sur le téléphone ; à 0 la musique s'arrête complètement), bouton **Sauvegarde**, bouton **FPS** (compteur d'images par seconde), bouton **Effacer la partie** (deux appuis pour confirmer).
 
 **Code de transfert** : pour changer de téléphone sans compte ni serveur. Le code contient toute la partie, encodée : niveau, monnaies jaune et bleue, gemmes, vies, améliorations, booster, véhicules achetés et véhicule choisi, record, gemmes déjà ramassées dans le niveau. Format `HK1-XXXX-XXXX-…` (40 à 60 caractères en base 32 sans I, L, O, U), avec une somme de contrôle qui refuse toute faute de frappe ; minuscules, espaces et confusions O/0, I/L/1 sont tolérés. Récupérer une partie demande une confirmation ; les minuteurs (vies, coffre, gemme horaire) repartent du moment de la récupération.
 
