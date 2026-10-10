@@ -1,8 +1,8 @@
 // Musique de fond de Hill Kicker : boucle électro énergique originale, synthétisée en direct avec la Web Audio API.
 // 128 BPM, tonalité de La mineur. Partie A (Lam – Fa – Rém – Mi) puis partie B (Lam – Sol – Fa – Mi), jouées A A B B.
 // Grosse caisse à chaque temps avec des relances, caisse claire et clap sur 2 et 4 avec des notes fantômes et des roulements,
-// basse lourde (sub + basse saturée) en doubles croches, compressée au rythme de la grosse caisse.
-// Pendant la course, un arpège sombre s'ajoute par-dessus.
+// vraie basse de synthé analogique (deux dents de scie désaccordées + sous-octave, filtre à enveloppe),
+// mélodie mineure dans le registre médium-grave jouée par un synthé chaud. Pendant la course, un arpège discret s'ajoute.
 
 const KEY = 'hill-kicker-music-off';
 const BPM = 128;
@@ -20,8 +20,22 @@ const CHORDS = {
 const PART_A = ['Am', 'F', 'Dm', 'E'], PART_B = ['Am', 'G', 'F', 'E'];
 const SONG = [...PART_A, ...PART_A, ...PART_B, ...PART_B];
 
-// Rythme de basse sur 16 pas : 0 = silence, 1 = fondamentale, 2 = octave, 3 = quinte
-const BASS = [1, 0, 1, 2, 1, 0, 1, 3, 1, 0, 1, 2, 1, 1, 2, 3];
+// Ligne de basse sur 16 pas : [pas, intervalle (0 = fondamentale, 12 = octave, 7 = quinte), durée en pas]
+const BASS = [[0, 0, 3], [3, 0, 1], [4, 0, 2], [6, 12, 2], [8, 0, 3], [11, 0, 1], [12, 7, 2], [14, 12, 2]];
+// Mélodie : [pas, note MIDI, durée en pas] — La mineur, registre La3–Mi5, une mesure par accord
+const MEL_A = [
+  [[0, 69, 3], [3, 72, 1], [4, 71, 2], [6, 69, 2], [8, 64, 4], [12, 67, 2], [14, 69, 2]],
+  [[0, 69, 3], [3, 72, 1], [4, 74, 4], [8, 72, 2], [10, 69, 2], [12, 65, 4]],
+  [[0, 74, 3], [3, 72, 1], [4, 69, 2], [6, 65, 2], [8, 62, 4], [12, 65, 2], [14, 69, 2]],
+  [[0, 68, 4], [4, 71, 2], [6, 76, 2], [8, 74, 2], [10, 71, 2], [12, 68, 4]],
+];
+const MEL_B = [
+  [[0, 76, 2], [2, 74, 2], [4, 72, 2], [6, 71, 2], [8, 72, 3], [11, 69, 1], [12, 69, 4]],
+  [[0, 74, 2], [2, 72, 2], [4, 71, 2], [6, 69, 2], [8, 71, 3], [11, 67, 1], [12, 67, 4]],
+  [[0, 72, 2], [2, 69, 2], [4, 65, 2], [6, 69, 2], [8, 72, 2], [10, 74, 2], [12, 72, 4]],
+  [[0, 71, 3], [3, 68, 1], [4, 64, 4], [8, 68, 2], [10, 71, 2], [12, 76, 4]],
+];
+const MELODY = [...MEL_A, ...MEL_A, ...MEL_B, ...MEL_B];
 // Relances de grosse caisse en plus des 4 temps (partie B plus chargée)
 const KICK_A = new Set([0, 4, 8, 12, 14]);
 const KICK_B = new Set([0, 4, 7, 8, 10, 12, 14]);
@@ -51,7 +65,8 @@ export class Music {
     // Saturation douce pour la basse médium
     this.shaper = ctx.createWaveShaper();
     const c = new Float32Array(1024); for (let i = 0; i < 1024; i++) { const x = i / 512 - 1; c[i] = Math.tanh(x * 3.2) / Math.tanh(3.2); }
-    this.shaper.curve = c; this.shaper.connect(this.bassBus);
+    this.shaper.curve = c;
+    const sh = ctx.createGain(); sh.gain.value = 0.3; this.shaper.connect(sh).connect(this.bassBus); // la saturation sort à pleine échelle : on la ramène
     this.noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.5), ctx.sampleRate);
     const d = this.noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   }
@@ -59,7 +74,7 @@ export class Music {
     const ctx = this.sound.ctx;
     if (this.off || !ctx || this.timer || document.hidden) return;
     if (!this.out) this.build(ctx, this.sound.master);
-    this.out.gain.setTargetAtTime(0.3, ctx.currentTime, 0.4);   // fondu d'entrée
+    this.out.gain.setTargetAtTime(0.22, ctx.currentTime, 0.4);   // fondu d'entrée
     this.next = ctx.currentTime + 0.08;
     this.timer = setInterval(() => this.schedule(), 25);
   }
@@ -87,11 +102,11 @@ export class Music {
     if (lastBar && bar === SONG.length - 1 && s === 15) this.crashFx(t + STEP);
     // Charleston en doubles croches, ouvert sur les contretemps
     if (s % 4 === 2) this.hat(t, 0.06, 0.14); else this.hat(t, s % 2 ? 0.018 : 0.03, 0.035);
-    // Basse en doubles croches
-    const b = BASS[s];
-    if (b) this.bass(mtof(ch.bass + (b === 2 ? 12 : b === 3 ? 7 : 0)), t, STEP * (BASS[(s + 1) % 16] ? 0.9 : 1.8), b === 1 && s % 4 === 0);
-    // Arpège sombre pendant la course : doubles croches montantes, filtre qui s'ouvre au fil de la phrase
-    if (this.lead && s % 2 === 0) this.arp(mtof(ch.arp[(s / 2) % 4] + 12), t, STEP * 1.6, (bar % 4) / 3);
+    // Basse : croches syncopées, fondamentale / octave / quinte, notes tenues
+    for (const [st, iv, len] of BASS) if (st === s) this.bass(mtof(ch.bass + 12 + iv), t, STEP * len * 0.95, s % 4 === 0);
+    // Mélodie (toujours) et arpège discret pendant la course
+    for (const [st, n, len] of MELODY[bar]) if (st === s) this.melody(mtof(n), t, STEP * len * 0.95);
+    if (this.lead && s % 2 === 1) this.arp(mtof(ch.arp[((s - 1) / 2) % 4] + 12), t, STEP * 1.4, (bar % 4) / 3);
   }
 
   // ---------- instruments ----------
@@ -132,23 +147,38 @@ export class Music {
     n.buffer = this.noiseBuf; n.loop = true; f.type = 'highpass'; f.frequency.value = 5000;
     this.env(g, t, 0.003, 0.12, 1.2); n.connect(f).connect(g).connect(this.out); n.start(t); n.stop(t + 1.25);
   }
-  // Basse : sub sinus propre + dent de scie saturée et filtrée ; les notes sur les temps sont un peu plus longues
+  // Basse de synthé analogique : deux dents de scie désaccordées + carré à l'octave inférieure,
+  // filtre passe-bas résonant avec enveloppe (attaque "pincée" comme une basse jouée au médiator), légère saturation.
   bass(freq, t, dur, accent) {
-    const ctx = this.sound.ctx;
-    const sub = ctx.createOscillator(), sg = ctx.createGain();
-    sub.type = 'sine'; sub.frequency.value = freq < 50 ? freq * 2 : freq;
-    this.env(sg, t, 0.004, accent ? 0.55 : 0.45, dur); sub.connect(sg).connect(this.bassBus); sub.start(t); sub.stop(t + dur + 0.02);
-    const o = ctx.createOscillator(), o2 = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-    o.type = 'sawtooth'; o.frequency.value = freq * 2; o2.type = 'square'; o2.frequency.value = freq * 2; o2.detune.value = -8;
-    f.type = 'lowpass'; f.Q.value = 6; f.frequency.setValueAtTime(accent ? 1400 : 1000, t); f.frequency.exponentialRampToValueAtTime(220, t + dur);
-    this.env(g, t, 0.004, 0.32, dur); o.connect(f); o2.connect(f); f.connect(g).connect(this.shaper);
-    for (const x of [o, o2]) { x.start(t); x.stop(t + dur + 0.02); }
+    const ctx = this.sound.ctx, f = ctx.createBiquadFilter(), g = ctx.createGain();
+    const oscs = [['sawtooth', freq, -9], ['sawtooth', freq, 9], ['square', freq / 2, 0]].map(([type, fr, det]) => { const o = ctx.createOscillator(); o.type = type; o.frequency.value = fr; o.detune.value = det; o.connect(f); return o; });
+    f.type = 'lowpass'; f.Q.value = 3;
+    f.frequency.setValueAtTime(accent ? 2400 : 1800, t); f.frequency.exponentialRampToValueAtTime(380, t + Math.min(dur, 0.22));
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(accent ? 0.42 : 0.36, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.26, t + 0.08); g.gain.setValueAtTime(0.26, t + Math.max(0.09, dur - 0.04)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.03);
+    f.connect(g).connect(this.shaper);
+    for (const o of oscs) { o.start(t); o.stop(t + dur + 0.05); }
+    // sub grave propre, sous la saturation
+    const sub = ctx.createOscillator(), sg = ctx.createGain(); sub.type = 'sine'; sub.frequency.value = freq / 2;
+    sg.gain.setValueAtTime(0.0001, t); sg.gain.exponentialRampToValueAtTime(0.4, t + 0.008); sg.gain.setValueAtTime(0.36, t + Math.max(0.02, dur - 0.04)); sg.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.03);
+    sub.connect(sg).connect(this.bassBus); sub.start(t); sub.stop(t + dur + 0.05);
+  }
+  // Mélodie : synthé chaud et sombre (dent de scie + carré désaccordés, filtre doux), petite glissade vers la note
+  melody(freq, t, dur) {
+    const ctx = this.sound.ctx, f = ctx.createBiquadFilter(), g = ctx.createGain();
+    const oscs = [['sawtooth', 0], ['square', -7], ['sawtooth', 12]].map(([type, det]) => { const o = ctx.createOscillator(); o.type = type; o.detune.value = det; o.frequency.setValueAtTime(freq * 0.97, t); o.frequency.exponentialRampToValueAtTime(freq, t + 0.04); o.connect(f); return o; });
+    const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 5.2; lg.gain.value = dur > STEP * 3 ? freq * 0.008 : 0;
+    lfo.connect(lg); for (const o of oscs) lg.connect(o.frequency);
+    f.type = 'lowpass'; f.Q.value = 1.5; f.frequency.setValueAtTime(2600, t); f.frequency.exponentialRampToValueAtTime(1300, t + Math.min(dur, 0.4));
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.1, t + 0.02); g.gain.setValueAtTime(0.085, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.05);
+    f.connect(g).connect(this.out);
+    for (const o of [...oscs, lfo]) { o.start(t); o.stop(t + dur + 0.08); }
   }
   // Arpège : son pincé sombre, filtre qui s'ouvre progressivement (open = 0..1)
   arp(freq, t, dur, open) {
     const ctx = this.sound.ctx, o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
     o.type = 'sawtooth'; o.frequency.value = freq;
     f.type = 'lowpass'; f.Q.value = 5; f.frequency.setValueAtTime(700 + open * 1600, t); f.frequency.exponentialRampToValueAtTime(300, t + dur);
-    this.env(g, t, 0.003, 0.06, dur); o.connect(f).connect(g).connect(this.out); o.start(t); o.stop(t + dur + 0.02);
+    this.env(g, t, 0.003, 0.035, dur); o.connect(f).connect(g).connect(this.out); o.start(t); o.stop(t + dur + 0.02);
   }
 }
