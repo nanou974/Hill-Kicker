@@ -2,7 +2,7 @@
 // 128 BPM, tonalité de La mineur. Partie A (Lam – Fa – Rém – Mi) puis partie B (Lam – Sol – Fa – Mi), jouées A A B B.
 // Grosse caisse à chaque temps avec des relances, caisse claire et clap sur 2 et 4 avec des notes fantômes et des roulements,
 // vraie basse de synthé analogique (deux dents de scie désaccordées + sous-octave, filtre à enveloppe),
-// mélodie mineure dans le registre médium-grave jouée par un synthé chaud. Pendant la course, un arpège discret s'ajoute.
+// mélodie entêtante (un motif rythmique répété sur chaque accord) dans le registre médium-grave, jouée par un synthé chaud doublé à l'octave inférieure. Pendant la course, un arpège discret s'ajoute.
 
 const KEY = 'hill-kicker-music-off';
 const BPM = 128;
@@ -22,18 +22,22 @@ const SONG = [...PART_A, ...PART_A, ...PART_B, ...PART_B];
 
 // Ligne de basse sur 16 pas : [pas, intervalle (0 = fondamentale, 12 = octave, 7 = quinte), durée en pas]
 const BASS = [[0, 0, 3], [3, 0, 1], [4, 0, 2], [6, 12, 2], [8, 0, 3], [11, 0, 1], [12, 7, 2], [14, 12, 2]];
-// Mélodie : [pas, note MIDI, durée en pas] — La mineur, registre La3–Mi5, une mesure par accord
+// Mélodie entêtante : un seul motif rythmique (3 + 3 + 2, puis trois notes rapides et une note tenue)
+// répété sur chaque accord ; seules les hauteurs suivent l'harmonie. La tête du motif revient à chaque mesure,
+// c'est elle qui reste dans la tête. [pas, note MIDI, durée en pas] — La mineur, registre Sol#3–Fa5.
+const HOOK = [0, 3, 6, 8, 10, 11, 12], HOOK_LEN = [3, 3, 2, 2, 1, 1, 4];
+const hook = (notes) => notes.map((n, i) => [HOOK[i], n, HOOK_LEN[i]]);
 const MEL_A = [
-  [[0, 69, 3], [3, 72, 1], [4, 71, 2], [6, 69, 2], [8, 64, 4], [12, 67, 2], [14, 69, 2]],
-  [[0, 69, 3], [3, 72, 1], [4, 74, 4], [8, 72, 2], [10, 69, 2], [12, 65, 4]],
-  [[0, 74, 3], [3, 72, 1], [4, 69, 2], [6, 65, 2], [8, 62, 4], [12, 65, 2], [14, 69, 2]],
-  [[0, 68, 4], [4, 71, 2], [6, 76, 2], [8, 74, 2], [10, 71, 2], [12, 68, 4]],
+  hook([76, 76, 74, 72, 74, 72, 69]),   // Lam : Mi Mi Ré Do Ré Do La
+  hook([76, 76, 74, 72, 74, 72, 65]),   // Fa  : … Fa
+  hook([77, 77, 76, 74, 76, 74, 69]),   // Rém : Fa Fa Mi Ré Mi Ré La
+  hook([76, 76, 74, 71, 72, 71, 68]),   // Mi  : Mi Mi Ré Si Do Si Sol#
 ];
 const MEL_B = [
-  [[0, 76, 2], [2, 74, 2], [4, 72, 2], [6, 71, 2], [8, 72, 3], [11, 69, 1], [12, 69, 4]],
-  [[0, 74, 2], [2, 72, 2], [4, 71, 2], [6, 69, 2], [8, 71, 3], [11, 67, 1], [12, 67, 4]],
-  [[0, 72, 2], [2, 69, 2], [4, 65, 2], [6, 69, 2], [8, 72, 2], [10, 74, 2], [12, 72, 4]],
-  [[0, 71, 3], [3, 68, 1], [4, 64, 4], [8, 68, 2], [10, 71, 2], [12, 76, 4]],
+  hook([72, 72, 71, 69, 71, 69, 64]),   // Lam : même motif, une tierce plus bas
+  hook([74, 74, 72, 71, 72, 71, 67]),   // Sol
+  hook([72, 72, 71, 69, 71, 69, 65]),   // Fa
+  hook([71, 71, 74, 72, 71, 68, 64]),   // Mi  : la fin remonte puis retombe pour relancer la boucle
 ];
 const MELODY = [...MEL_A, ...MEL_A, ...MEL_B, ...MEL_B];
 // Relances de grosse caisse en plus des 4 temps (partie B plus chargée)
@@ -166,11 +170,11 @@ export class Music {
   // Mélodie : synthé chaud et sombre (dent de scie + carré désaccordés, filtre doux), petite glissade vers la note
   melody(freq, t, dur) {
     const ctx = this.sound.ctx, f = ctx.createBiquadFilter(), g = ctx.createGain();
-    const oscs = [['sawtooth', 0], ['square', -7], ['sawtooth', 12]].map(([type, det]) => { const o = ctx.createOscillator(); o.type = type; o.detune.value = det; o.frequency.setValueAtTime(freq * 0.97, t); o.frequency.exponentialRampToValueAtTime(freq, t + 0.04); o.connect(f); return o; });
+    const oscs = [['sawtooth', 0], ['square', -7], ['sawtooth', -1200]].map(([type, det]) => { const o = ctx.createOscillator(); o.type = type; o.detune.value = det; o.frequency.setValueAtTime(freq * 0.97, t); o.frequency.exponentialRampToValueAtTime(freq, t + 0.04); o.connect(f); return o; });
     const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 5.2; lg.gain.value = dur > STEP * 3 ? freq * 0.008 : 0;
     lfo.connect(lg); for (const o of oscs) lg.connect(o.frequency);
-    f.type = 'lowpass'; f.Q.value = 1.5; f.frequency.setValueAtTime(2600, t); f.frequency.exponentialRampToValueAtTime(1300, t + Math.min(dur, 0.4));
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.1, t + 0.02); g.gain.setValueAtTime(0.085, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.05);
+    f.type = 'lowpass'; f.Q.value = 2.5; f.frequency.setValueAtTime(3400, t); f.frequency.exponentialRampToValueAtTime(1100, t + Math.min(dur, 0.25)); // attaque bien marquée
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.11, t + 0.008); g.gain.exponentialRampToValueAtTime(0.08, t + 0.1); g.gain.setValueAtTime(0.08, t + Math.max(0.11, dur * 0.7)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.05);
     f.connect(g).connect(this.out);
     for (const o of [...oscs, lfo]) { o.start(t); o.stop(t + dur + 0.08); }
   }

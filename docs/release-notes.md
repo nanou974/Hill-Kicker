@@ -1,9 +1,9 @@
-Musique : vraie basse et mélodie plus grave.
+Musique : une mélodie entêtante.
 
 ## Installer / mettre à jour
-Télécharge `HillKicker-v0.5.2.apk` ci-dessous depuis ton téléphone et ouvre-le : il s'installe par-dessus la version précédente, ta progression est conservée.
+Télécharge `HillKicker-v0.5.3.apk` ci-dessous depuis ton téléphone et ouvre-le : il s'installe par-dessus la version précédente, ta progression est conservée.
 
 ## Nouveautés
-- **Vraie basse de synthé** analogique : deux dents de scie désaccordées et une sous-octave, filtre qui claque à l'attaque comme une basse jouée au médiator, notes tenues en croches syncopées.
-- **Mélodie** mineure, moins enjouée, dans le registre médium-grave, jouée par un synthé chaud avec une petite glissade et du vibrato.
-- Les kicks, snares et claps de la version précédente sont conservés.
+- **Mélodie refaite pour rester en tête** : un seul motif rythmique court (« ta… ta… ta-ta, ta-ta-ta, taaa ») qui revient à chaque mesure ; seules les notes changent pour suivre les accords.
+- Son de synthé plus marqué à l'attaque, doublé à l'octave inférieure pour plus de corps.
+- La basse de synthé et la batterie de la version précédente sont conservées.
