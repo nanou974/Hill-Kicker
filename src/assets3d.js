@@ -133,16 +133,19 @@ export function gem(s = 1) {
   const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.55 * s, 0), mat(0xF04FA0, { r: 0.15, m: 0.1, e: 0xB0136A, ei: 0.35 }));
   m.scale.y = 1.25; m.castShadow = true; return m;
 }
-export function boostPad(w = 6, l = 4) {
-  const tex = canvasTex(256, 256, (g, W, H) => {
+function boostTex() {
+  return canvasTex(256, 256, (g, W, H) => {
     g.fillStyle = '#1E9BD7'; g.fillRect(0, 0, W, H);
     g.fillStyle = '#8CF7FF';
     for (let k = 0; k < 2; k++) { const y = 40 + k * 110; g.beginPath(); g.moveTo(40, y + 70); g.lineTo(128, y); g.lineTo(216, y + 70); g.lineTo(184, y + 70); g.lineTo(128, y + 30); g.lineTo(72, y + 70); g.closePath(); g.fill(); }
   });
+}
+export function boostPad(w = 6, l = 4) {
+  const tex = boostTex();
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.15, l), [mat(0x0D5A80), mat(0x0D5A80), mat(0xffffff, { map: tex, e: 0x55E6FF, ei: 0.45, flat: true }), mat(0x0D5A80), mat(0x0D5A80), mat(0x0D5A80)]);
   m.receiveShadow = true; return m;
 }
-export function ramp(w = 6, l = 5, h = 1.8) {
+export function ramp(w = 6, l = 5, h = 1.8, boost = false) {
   const shape = new THREE.Shape(); shape.moveTo(0, 0); shape.lineTo(l, 0); shape.lineTo(l, h); shape.closePath();
   const geo = new THREE.ExtrudeGeometry(shape, { depth: w, bevelEnabled: false });
   geo.translate(-l / 2, 0, -w / 2); geo.rotateY(Math.PI / 2);
@@ -150,7 +153,16 @@ export function ramp(w = 6, l = 5, h = 1.8) {
   const m = new THREE.Mesh(geo, mat(0xffffff, { map: wood }));
   const stripe = new THREE.Mesh(new THREE.BoxGeometry(w + 0.1, 0.12, 0.35), mat(0xFFC21A));
   stripe.position.set(0, h, -l / 2 + 0.15);
-  const g = new THREE.Group(); g.add(m, stripe); return shadowAll(g);
+  const g = new THREE.Group(); g.add(m, stripe);
+  if (boost) {
+    // Bande d'accélération lumineuse posée sur la pente de la rampe
+    const len = Math.hypot(l, h);
+    const pad = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.7, len * 0.86), mat(0xffffff, { map: boostTex(), e: 0x55E6FF, ei: 0.6 }));
+    pad.rotation.x = -Math.atan2(l, h); pad.position.set(0, h / 2 + 0.03, 0.02);
+    g.add(pad);
+  }
+  shadowAll(g); g.children.forEach(c => { if (c.geometry && c.geometry.type === 'PlaneGeometry') c.castShadow = false; });
+  return g;
 }
 
 export function hazardTex() {

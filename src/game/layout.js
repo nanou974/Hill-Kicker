@@ -17,7 +17,7 @@ export function makeLayout(level) {
   }
   // Rampes
   for (let s = 40; s < LEVEL_LENGTH - 50; s += 160 + r() * 140) {
-    ramps.push({ x: (r() - 0.5) * 24, z: -s, w: 6, l: 5, h: 1.7 });
+    ramps.push({ x: (r() - 0.5) * 24, z: -s, w: 6, l: 5, h: 1.7, boost: true });
   }
   // Plaques boost : avant les côtes (la pente remonte dans les 25 m suivants)
   let lastPlate = -100;

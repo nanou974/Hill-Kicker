@@ -4,6 +4,7 @@
 
 export const G = 9.81;
 export const TRACK_HALF = 21; // demi-largeur roulable de la piste
+export const RAMP_BOOST = 4;  // gain de vitesse (m/s) au décollage d'une rampe à booster
 
 // Paramètres dérivés des améliorations
 export function tuning(up) {
@@ -62,10 +63,11 @@ export function step(car, world, t, input, dt, events) {
       const k = Math.min(1, Math.max(0, (ramp.z + ramp.l / 2 - car.z) / ramp.l));
       y += k * ramp.h;
       if (k >= 1 && car.v > 4) {
+        if (ramp.boost) car.v += RAMP_BOOST;           // bande d'accélération sur la rampe
         car.air = true; car.airTime = 0;
         car.vy = car.v * (ramp.h / ramp.l) * 1.05 + 1.2;
         car.trickPitch = 0; car.trickRoll = 0;
-        events.push({ type: 'takeoff' });
+        events.push({ type: 'takeoff', boost: !!ramp.boost });
       }
     }
     car.y = y;

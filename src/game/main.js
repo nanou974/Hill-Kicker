@@ -7,9 +7,11 @@ import { World } from './world.js';
 import { createCar, step, tuning, launchSpeed } from './physics.js';
 import { Economy, UPGRADES, VEHICLE_PRICES } from './economy.js';
 import { Joystick } from './input.js';
+import { Sound } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
 const eco = new Economy();
+const sfx = new Sound();
 const fmt = (n) => Math.round(n).toLocaleString('fr-FR').replace(/ /g, ' ');
 const mmss = (ms) => { const s = Math.ceil(ms / 1000); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
 const ICONS = { pneus: 'i_pneus', susp: 'i_susp', lanceur: 'i_lanceur', mult: 'i_multi' };
@@ -49,6 +51,7 @@ let layout, world, carMesh, car, tune;
 let pct = 0, holding = false, maxed = false;
 let runCoins = 0, runGems = 0, boostUsed = false, trickTimer = 0;
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
+let camSide = 0; // décalage latéral de la caméra : vue de trois quarts dans les virages
 const joy = new Joystick($('app'), $('joy-base'), $('joy-knob'));
 
 function buildLevel() {
@@ -78,6 +81,7 @@ function setScreen(s) {
   show('s-home', s === 'home'); show('s-launch', s === 'launch'); show('s-run', s === 'run');
   show('hud-top', s === 'home' || s === 'launch' || s === 'end');
   joy.enabled = s === 'run'; if (s !== 'run') joy.reset();
+  sfx.engineStart(); sfx.engineSet(s === 'launch' ? 0.05 : 0, s === 'launch' || s === 'run');
   $('app').classList.remove('shake');
 }
 function refreshTop() {
@@ -106,7 +110,7 @@ function refreshHome() {
       <span class="pips">${[0, 1, 2, 3, 4].map(i => `<i class="${i < on ? 'on' : ''}"></i>`).join('')}</span>
       <button type="button" class="btn ${u.key === 'mult' ? 'brown' : 'blue'}">AMÉLIORER<br><span class="cost"><svg class="ico s"><use href="#i-coin"/></svg>${fmt(cost)}</span></button>`;
     const b = el.querySelector('button'); b.disabled = s.yellow < cost;
-    b.addEventListener('click', () => { if (eco.buy(u.key)) { buildCarMesh(); placeCarOnLauncher(); refreshHome(); } });
+    b.addEventListener('click', () => { if (eco.buy(u.key)) { sfx.buy(); buildCarMesh(); placeCarOnLauncher(); refreshHome(); } });
     cards.appendChild(el);
   }
 }
@@ -117,9 +121,12 @@ $('b-play').addEventListener('click', () => {
   tune = tuning(eco.s.up); pct = 0; maxed = false; updateGauge(); setScreen('launch');
 });
 $('b-nolives').addEventListener('click', () => show('p-nolives', false));
-$('b-chest').addEventListener('click', () => { const r = eco.openChest(); if (!r) return; $('v-c-yellow').textContent = fmt(r.yellow); $('v-c-blue').textContent = fmt(r.blue); show('p-chest', true); refreshHome(); });
+$('b-chest').addEventListener('click', () => { const r = eco.openChest(); if (!r) return; sfx.win(); $('v-c-yellow').textContent = fmt(r.yellow); $('v-c-blue').textContent = fmt(r.blue); show('p-chest', true); refreshHome(); });
 $('b-chestok').addEventListener('click', () => show('p-chest', false));
-$('b-booster').addEventListener('click', () => { if (eco.buyBooster()) refreshHome(); });
+$('b-booster').addEventListener('click', () => { if (eco.buyBooster()) { sfx.buy(); refreshHome(); } });
+function refreshSoundBtn() { $('b-sound').textContent = sfx.muted ? 'SON : COUPÉ' : 'SON : ACTIVÉ'; }
+$('b-sound').addEventListener('click', () => { sfx.setMuted(!sfx.muted); refreshSoundBtn(); });
+refreshSoundBtn();
 $('b-menu').addEventListener('click', () => show('p-menu', true));
 $('b-menuclose').addEventListener('click', () => show('p-menu', false));
 $('b-reset').addEventListener('click', () => { eco.reset(); show('p-menu', false); buildCarMesh(); buildLevel(); refreshHome(); });
@@ -137,7 +144,8 @@ hold.addEventListener('pointerdown', (e) => { e.preventDefault(); hold.setPointe
 const release = () => {
   if (!holding) return;
   holding = false; hold.classList.remove('pressed'); $('app').classList.remove('shake');
-  if (pct < 50) { $('v-faux').textContent = `Lâché à ${Math.floor(pct)} %`; show('p-faux', true); return; }
+  if (pct < 50) { sfx.fail(); sfx.engineSet(0.05); $('v-faux').textContent = `Lâché à ${Math.floor(pct)} %`; show('p-faux', true); return; }
+  sfx.launch();
   eco.useLife(); refreshTop();
   car.v = launchSpeed(tune, pct);
   runCoins = 0; runGems = 0; boostUsed = false;
@@ -152,16 +160,23 @@ $('b-launchback').addEventListener('click', () => { setScreen('home'); refreshHo
 // ---------- course ----------
 function useBoost() {
   if (state !== 'run' || boostUsed || eco.boosterTime() <= 0) return;
-  boostUsed = true; car.boostLeft = eco.boosterTime(); $('b-boost').classList.add('on'); $('b-boost').disabled = true;
+  boostUsed = true; car.boostLeft = eco.boosterTime(); $('b-boost').classList.add('on'); $('b-boost').disabled = true; sfx.boost();
 }
 $('b-boost').addEventListener('click', useBoost);
 addEventListener('keydown', (e) => { if (e.code === 'Space') { e.preventDefault(); if (state === 'launch' && !holding) hold.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1 })); else useBoost(); } });
 addEventListener('keyup', (e) => { if (e.code === 'Space' && state === 'launch') release(); });
 
+// Valeur ramassée qui s'envole près de la voiture : +1 bronze, +3 argent, +5 or, +1 gemme
+function popValue(text, kind) {
+  const el = document.createElement('div'); el.className = `pop ${kind}`; el.textContent = text;
+  el.style.left = `${46 + (Math.random() - 0.5) * 16}%`; el.style.top = `${56 + (Math.random() - 0.5) * 6}%`;
+  $('s-run').appendChild(el); setTimeout(() => el.remove(), 900);
+}
 function showTrick(html) { const t = $('trick'); t.innerHTML = html; t.hidden = false; trickTimer = 1.4; }
 
 function finishRace(finished) {
   setScreen('end');
+  if (finished) sfx.win();
   const r = eco.endRace({ distance: Math.min(car.distance, LEVEL_LENGTH), coins: runCoins, gems: runGems, finished });
   $('v-r-calc').textContent = `${fmt(r.distance)} m × multiplicateur ×${String(r.mult).replace('.', ',')}`;
   $('v-r-dist').textContent = fmt(r.fromDistance); $('v-r-coins').textContent = `+${fmt(r.coins)}`;
@@ -184,18 +199,21 @@ function runStep(dt) {
     else step(car, worldPhys, tune, { steer: joy.steer, up: joy.up }, h, events);
     if (!car.air && !onLauncher) {
       const p = layout.plateAt(car.x, car.z);
-      if (p && car._plate !== p) { car.v += 5; car._plate = p; showTrick('BOOST !'); }
+      if (p && car._plate !== p) { car.v += 5; car._plate = p; showTrick('BOOST !'); sfx.boost(); }
     }
   }
   // Pièces et gemmes
   for (const c of layout.coins) if (!c.taken && Math.abs(c.z - car.z) < 1.6 && Math.abs(c.x - car.x) < 1.5) {
-    const gy = layout.ground(c.x, c.z, 1).h + 0.95; if (Math.abs(car.y + 0.6 - gy) < 2.2) { world.take(c); runCoins += COIN_VALUE[c.kind]; }
+    const gy = layout.ground(c.x, c.z, 1).h + 0.95;
+    if (Math.abs(car.y + 0.6 - gy) < 2.2) { world.take(c); runCoins += COIN_VALUE[c.kind]; sfx.coin(c.kind); popValue(`+${COIN_VALUE[c.kind]}`, c.kind); }
   }
-  for (const g of layout.gems) if (!g.taken && Math.abs(g.z - car.z) < 1.8 && Math.abs(g.x - car.x) < 1.8) { world.take(g); runGems++; }
+  for (const g of layout.gems) if (!g.taken && Math.abs(g.z - car.z) < 1.8 && Math.abs(g.x - car.x) < 1.8) { world.take(g); runGems++; sfx.gem(); popValue('+1', 'gem'); }
   for (const e of events) {
+    if (e.type === 'takeoff') { sfx.takeoff(); if (e.boost) { sfx.boost(); showTrick('RAMPE BOOST !'); } }
+    if (e.type === 'land') sfx.land();
     if (e.type === 'trick') {
       const parts = []; if (e.flips) parts.push(e.flips > 1 ? `${e.flips} FRONT FLIPS` : 'FRONT FLIP'); if (e.rolls) parts.push(e.rolls > 1 ? `${e.rolls} TONNEAUX` : 'TONNEAU');
-      showTrick(`${parts.join(' + ')} !<small>+${Math.round((e.flips + e.rolls) * 2.2 * 3.6)} km/h</small>`);
+      showTrick(`${parts.join(' + ')} !<small>+${Math.round((e.flips + e.rolls) * 2.2 * 3.6)} km/h</small>`); sfx.trick();
     }
   }
   if (car.distance >= LEVEL_LENGTH) { finishRace(true); return; }
@@ -221,22 +239,27 @@ function frame(now) {
   const raw = Math.min(0.25, (now - last) / 1000); const dt = Math.min(0.05, raw); last = now; clock += dt;
   if (state === 'launch' && holding && !maxed) { pct = Math.min(100, pct + raw * 62); if (pct >= 100) maxed = true; updateGauge(); }
   if (state === 'launch' && holding && maxed) $('app').classList.add('shake');
-  if (state === 'run') { runStep(dt); updateRunHud(); }
+  if (state === 'run') { runStep(dt); updateRunHud(); sfx.engineSet(Math.min(1, Math.max(0, car.v) / 40), !car.ended); }
+  if (state === 'launch') sfx.engineSet(holding ? 0.15 + pct / 100 * 0.85 : 0.05);
   if (trickTimer > 0) { trickTimer -= dt; if (trickTimer <= 0) $('trick').hidden = true; }
   world.update(car.z, clock);
   world.start.visible = state !== 'run' || car.z > -1;
 
   // Voiture
   carMesh.position.set(car.x, car.y, car.z);
-  carMesh.rotation.set(car.pitch, 0, car.roll);
+  const yaw = car.air ? 0 : Math.max(-0.3, Math.min(0.3, -car.vx * 0.035)); // la voiture s'oriente dans le virage
+  carMesh.rotation.set(car.pitch, yaw, car.roll);
   if (state === 'launch' && holding) carMesh.position.x += Math.sin(clock * 60) * 0.02 * (pct / 100);
 
   // Caméra
   const y0 = world.launcherTop;
   if (state === 'home') { camPos.set(-7.8, y0 + 3.4, car.z - 11.2); camLook.set(0.3, y0 + 0.7, car.z + 0.4); camera.position.copy(camPos); camera.lookAt(camLook); }
   else {
-    const tp = new THREE.Vector3(car.x * 0.6, car.y + 5.4, car.z + 12.5);
-    const tl = new THREE.Vector3(car.x * 0.85, car.y - 5.5, car.z - 24);
+    // Vue de trois quarts : quand la voiture tourne, la caméra glisse du côté opposé et voit son flanc
+    const sideTarget = state === 'run' && !car.air ? Math.max(-4.5, Math.min(4.5, car.vx * 0.5)) : 0;
+    camSide += (sideTarget - camSide) * Math.min(1, dt * 2.5);
+    const tp = new THREE.Vector3(car.x * 0.6 - camSide, car.y + 5.4, car.z + 12.5);
+    const tl = new THREE.Vector3(car.x * 0.85 + camSide * 0.5, car.y - 5.5, car.z - 24);
     if (state === 'launch') { camPos.copy(tp); camLook.copy(tl); }
     camPos.lerp(tp, Math.min(1, dt * 5)); camLook.lerp(tl, Math.min(1, dt * 5));
     camera.position.copy(camPos); camera.lookAt(camLook);

@@ -17,7 +17,8 @@ Le document de conception complet est dans [docs/GDD.md](docs/GDD.md).
 | Modèles 3D des 20 véhicules | Faits (`src/assets3d.js`) |
 | Terrain, décors, lanceur, pièces, gemmes | Faits (`src/assets3d.js`) |
 | Boucle de jeu jouable (prototype) | Faite : lanceur, course, cascades, booster, pièces, résultats, coffre, vies, améliorations, garage |
-| Visuels par palier d'amélioration, 20 mondes, sons | À faire |
+| Sons (moteur, pièces, boosts, cascades) | Faits |
+| Visuels par palier d'amélioration, 20 mondes | À faire |
 
 ## Jouer
 

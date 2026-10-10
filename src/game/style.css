@@ -131,3 +131,11 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 .g-card .p { display: inline-flex; align-items: center; font-size: 12px; background: #2F86F0; border-radius: 6px; padding: 0 6px; }
 .g-card.locked .p { background: #6B7A93; }
 .g-card .p .ico { width: 14px; height: 14px; margin: 0 2px 0 0; }
+
+/* Valeurs ramassées */
+.pop { position: absolute; z-index: 8; font-size: 30px; -webkit-text-stroke: 1.5px var(--ink); text-shadow: 0 3px 0 var(--ink); pointer-events: none; animation: pop 0.9s ease-out forwards; }
+.pop.bronze { color: #F0A060; font-size: 26px; }
+.pop.silver { color: #E6EEF7; font-size: 30px; }
+.pop.gold { color: #FFD23F; font-size: 38px; }
+.pop.gem { color: #FF8CC6; font-size: 34px; }
+@keyframes pop { 0% { transform: translate(-50%, 0) scale(0.6); opacity: 0; } 15% { transform: translate(-50%, -10px) scale(1.15); opacity: 1; } 100% { transform: translate(-50%, -90px) scale(1); opacity: 0; } }
