@@ -1,0 +1,8 @@
+{
+  "appId": "com.nanou974.hillkicker",
+  "appName": "Hill Kicker",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#5EB4EC"
+  }
+}

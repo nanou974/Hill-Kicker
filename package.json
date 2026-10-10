@@ -6,12 +6,18 @@
   "type": "module",
   "scripts": {
     "serve": "npx --yes http-server -c-1 -p 8080 .",
-    "render": "node tools/render/render.mjs"
+    "render": "node tools/render/render.mjs",
+    "build:app": "node tools/build-app.mjs && npx cap sync android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
     "three": "0.186.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
+    "@fontsource/lilita-one": "^5.3.0",
+    "@fontsource/nunito": "^5.3.0",
     "playwright-core": "^1.50.0"
   }
 }

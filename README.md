@@ -31,6 +31,19 @@ Ouvre http://localhost:8080 sur ton téléphone (même réseau) ou ton ordinateu
 
 Pour jouer en ligne sans rien installer, active GitHub Pages sur la branche `main` (Settings › Pages) : le jeu sera alors sur https://nanou974.github.io/Hill-Kicker/.
 
+## Appli Android
+
+L'APK est compilé automatiquement par GitHub Actions (`.github/workflows/android.yml`) :
+
+- chaque push sur `main` produit un APK dans l'onglet **Actions** ;
+- chaque tag `vX.Y.Z` crée une **release** avec l'APK à télécharger : https://github.com/nanou974/Hill-Kicker/releases
+
+Pour publier une nouvelle version : changer `VERSION` dans `src/game/version.js` (et `package.json`), puis `git tag vX.Y.Z && git push origin vX.Y.Z`.
+
+L'APK est signé avec une clé de test présente dans le dépôt (`android/app/hillkicker-test.keystore`). Pour le Play Store, il faudra une clé privée fournie par les secrets GitHub (`KEYSTORE_FILE`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`).
+
+En local (avec le SDK Android installé) : `npm run build:app`, puis ouvrir `android/` dans Android Studio.
+
 ## Structure
 
 ```

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Hill Kicker</string>
+    <string name="title_activity_main">Hill Kicker</string>
+    <string name="package_name">com.nanou974.hillkicker</string>
+    <string name="custom_url_scheme">com.nanou974.hillkicker</string>
+</resources>
