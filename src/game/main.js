@@ -8,8 +8,10 @@ import { createCar, step, tuning, launchSpeed } from './physics.js';
 import { Economy, UPGRADES, VEHICLE_PRICES } from './economy.js';
 import { Joystick } from './input.js';
 import { Sound } from './audio.js';
+import { VERSION } from './version.js';
 
 const $ = (id) => document.getElementById(id);
+$('v-version').textContent = `v${VERSION}`;
 const eco = new Economy();
 const sfx = new Sound();
 const fmt = (n) => Math.round(n).toLocaleString('fr-FR').replace(/ /g, ' ');
