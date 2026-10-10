@@ -1,0 +1,17 @@
+{
+  "name": "hill-kicker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hill Kicker – jeu mobile 3D low-poly : lance ta voiture depuis le tapis, dévale les pentes, améliore, recommence.",
+  "type": "module",
+  "scripts": {
+    "serve": "npx --yes http-server -c-1 -p 8080 .",
+    "render": "node tools/render/render.mjs"
+  },
+  "dependencies": {
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.50.0"
+  }
+}
