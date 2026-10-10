@@ -25,7 +25,7 @@ for (const [level, kind, back] of wanted) {
   await page.waitForFunction(() => window.__hk, null, { timeout: 60000 });
   await page.click('#b-play', { force: true }); await page.waitForTimeout(300);
   const bb = await (await page.$('#b-hold')).boundingBox();
-  await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down(); await page.waitForTimeout(2600); await page.mouse.up();
+  await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down(); await page.waitForTimeout(4500); await page.mouse.up();
   await page.waitForTimeout(800);
   const info = await page.evaluate(([kind, back]) => {
     const hk = window.__hk;

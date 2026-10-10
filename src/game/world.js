@@ -4,7 +4,7 @@ import * as A from '../assets3d.js';
 import { LEVEL_LENGTH } from './layout.js';
 import { buildPassage } from './passages.js';
 
-const CHUNK = 150, AHEAD = 2, BEHIND = 1;
+const CHUNK = 150, AHEAD = 3, BEHIND = 1;
 const WIDTH = 240, STEP = 2.5;
 
 function hash(ix, iz) { let h = (ix * 374761393 + iz * 668265263) ^ 0x5bd1e995; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
@@ -93,7 +93,7 @@ export class World {
     for (const [i, g] of this.chunks) if (i < ci - BEHIND || i > ci + AHEAD) { this.root.remove(g); g.traverse(o => { if (o.geometry) o.geometry.dispose(); }); this.chunks.delete(i); }
     // Animation des pièces et gemmes
     for (const m of this.coinMeshes) if (m.parent) { m.rotation.y = time * 2.4 + m.userData.phase; }
-    for (const m of this.gemMeshes) if (m.parent) { m.rotation.y = time * 1.6; m.position.y = m.userData.y + Math.sin(time * 2.5) * 0.15; }
+    for (const m of this.gemMeshes) if (m.parent) { m.rotation.y = time * 1.6; m.position.y = m.userData.y + Math.sin(time * 2.5) * 0.15; if (m.children[0]) m.children[0].visible = m.position.z < carZ - 25; } // la colonne de lumière s'efface quand on arrive dessus
     // Objets percutés : ils s'envolent en tournoyant puis disparaissent
     for (const f of this.flying) {
       f.t += dt; f.vy -= 9.81 * dt;
@@ -180,7 +180,7 @@ export class World {
     for (const cn of L.coins) if (inChunk(cn.z) && !cn.taken) { const m = A.coin(cn.kind, cn.kind === 'gold' ? 1.1 : cn.kind === 'silver' ? 1 : 0.9); m.position.set(cn.x, L.ground(cn.x, cn.z, 1).h + 0.95, cn.z); m.userData.phase = cn.z * 0.3; m.userData.ref = cn; cn.mesh = m; g.add(m); this.coinMeshes.push(m); }
     for (const o of L.obstacles) if (inChunk(o.z) && !o.own) { const m = o.kind === 'statue' ? A.statue(1) : A.rockShape(o.shape, o.seed); m.position.set(o.x, L.ground(o.x, o.z, 1).h - 0.05, o.z); m.rotation.y = o.rot; g.add(m); }
     for (const b of L.props) if (inChunk(b.z) && !b.hit) { const m = b.kind === 'crate' ? A.crate(1) : A.hayBlock(1); m.position.set(b.x, L.ground(b.x, b.z, 1).h, b.z); m.rotation.y = b.rot; b.mesh = m; g.add(m); }
-    for (const gm of L.gems) if (inChunk(gm.z) && !gm.taken) { const m = A.gem(1); const y = L.ground(gm.x, gm.z, 1).h + 1.4; m.position.set(gm.x, y, gm.z); m.userData.y = y; gm.mesh = m; g.add(m); this.gemMeshes.push(m); }
+    for (const gm of L.gems) if (inChunk(gm.z) && !gm.taken) { const m = A.gem(1); const y = L.ground(gm.x, gm.z, 1).h + 1.4; m.position.set(gm.x, y, gm.z); m.userData.y = y; m.add(A.gemBeam()); gm.mesh = m; g.add(m); this.gemMeshes.push(m); }
     this.root.add(g);
     return g;
   }

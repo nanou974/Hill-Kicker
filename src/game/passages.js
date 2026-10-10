@@ -20,7 +20,7 @@ export function buildPassage(L, p) {
 function rockMass(L, p) {
   const g = new THREE.Group(), r = A.rng(p.seed);
   const H = { arch: 11, tunnel: 15, cave: 13, canyon: 16 }[p.kind];
-  const holeH = { arch: 8.5, tunnel: 7.5, cave: 7.2 }[p.kind];
+  const holeH = p.holeH;
   const o0 = p.openings[0];
   const ops = [...p.openings].sort((a, b) => a.c0 - b.c0);
   const center = (z) => o0.c0 + (o0.c1 - o0.c0) * smooth((p.z0 - z) / p.len);
@@ -36,20 +36,22 @@ function rockMass(L, p) {
       const pts = [[side * X, -4], [side * X, top(side * X)]];
       for (let x = side * (X - 3); side * x > side * edge + 3; x -= side * 3) pts.push([x, top(x)]);
       // face de la falaise : en retrait irrégulier, jamais dans le passage
-      for (let y = H - 1; y > -1; y -= 2.2) pts.push([edge + side * (0.2 + hash3(edge, y, side) * 1.4), y]);
-      pts.push([edge + side * 0.2, -4]);
+      for (let y = H - 1; y > -1; y -= 2.2) pts.push([edge + side * (0.05 + hash3(edge, y, side) * 0.35), y]);
+      // base enterrée découpée tous les 2,5 m pour suivre le sol (les talus remontent sur les côtés)
+      for (let x = edge + side * 0.2; side * x < side * X; x += side * 2.5) pts.push([x, -4]);
       s.moveTo(pts[0][0], pts[0][1]); for (const q of pts.slice(1)) s.lineTo(q[0], q[1]);
       shapes.push(s);
     }
   } else {
     // Bloc plein sur toute la largeur, percé d'une ou deux ouvertures voûtées
     const s = new THREE.Shape();
-    s.moveTo(-X, -4); s.lineTo(X, -4);
+    // base enterrée découpée tous les 2,5 m pour suivre le sol (les talus remontent sur les côtés)
+    s.moveTo(-X, -4); for (let x = -X + 2.5; x <= X; x += 2.5) s.lineTo(x, -4);
     for (let x = X; x >= -X; x -= 2.5) s.lineTo(x, top(x));
     s.lineTo(-X, -4);
     for (const o of ops) {
       const h = new THREE.Path(), hw = o.w / 2, rise = Math.min(hw, holeH * 0.5), spring = holeH - rise;
-      h.moveTo(o.c0 - hw, -1); h.lineTo(o.c0 + hw, -1); h.lineTo(o.c0 + hw, spring);
+      h.moveTo(o.c0 - hw, -1); for (let k = 1; k <= 4; k++) h.lineTo(o.c0 - hw + o.w * k / 4, -1); h.lineTo(o.c0 + hw, spring);
       for (let k = 1; k < 16; k++) { const a = k / 16 * Math.PI; h.lineTo(o.c0 + hw * Math.cos(a), spring + rise * Math.sin(a)); }
       h.lineTo(o.c0 - hw, spring); h.lineTo(o.c0 - hw, -1);
       s.holes.push(h);
@@ -71,9 +73,12 @@ function rockMass(L, p) {
       const n = hash3(x0, y0, zl) - 0.5, m = hash3(y0, zl, x0) - 0.5;
       if (inner) {
         // paroi intérieure : relief seulement vers l'extérieur (le passage reste dégagé), plus marqué dans la grotte
-        const amp = p.kind === 'cave' ? 0.9 : 0.25, o = ops.find(o => Math.abs(x0 - o.c0) < o.w / 2 + 0.05);
+        const amp = p.kind === 'cave' ? 0.5 : 0.2, o = ops.find(o => Math.abs(x0 - o.c0) < o.w / 2 + 0.05);
         if (y0 > 0) { const dx = x0 - o.c0, d = Math.hypot(dx, Math.max(0, y0 - (holeH - Math.min(o.w / 2, holeH * 0.5)))) || 1; x += dx / d * (n + 0.5) * amp; y += Math.max(0, y0 - holeH * 0.5) / holeH * (m + 0.5) * amp; }
-      } else if (y0 > -3) { x += n * 0.9; y += m * 0.9; if (zl > 0.1 && zl < p.len - 0.1) zz += (hash3(zl, x0, y0) - 0.5) * 0.8; }
+      } else if (y0 > -3) {
+        // face des falaises de la gorge : pas de relief latéral, la paroi visible doit coller à la collision
+        const face = p.kind === 'canyon' && Math.abs(Math.abs(x0 - o0.c0) - o0.w / 2) < 2;
+        x += face ? 0 : n * 0.9; y += m * 0.9; if (zl > 0.1 && zl < p.len - 0.1) zz += (hash3(zl, x0, y0) - 0.5) * 0.8; }
       y += L.ground(x, zz, 1).h;
       pos.setXYZ(i, x, y, zz);
       const k = hash3(x0, zl, 7) * 0.08;
@@ -86,7 +91,7 @@ function rockMass(L, p) {
     }
     geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     geo.computeVertexNormals();
-    g.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.92, envMapIntensity: 0.2 })));
+    g.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.92, envMapIntensity: 0.2, side: THREE.DoubleSide })));
   }
 
   const yAt = (x, z) => L.ground(x, z, 1).h;
@@ -109,7 +114,7 @@ function rockMass(L, p) {
     // Stalactites au plafond, stalagmites (obstacles) au sol, cristaux lumineux sur les parois
     const st = A.mat(0x8A8178), cr = [A.mat(0x7FE3FF, { e: 0x3FC6FF, ei: 1.4 }), A.mat(0xF7A8E8, { e: 0xE85FD0, ei: 1.4 })];
     for (let z = p.z0 - 2; z > p.z1 + 1; z -= 2.6 + r() * 2) {
-      const x = center(z) + (r() - 0.5) * (o0.w - 3), l = 0.8 + r() * 1.6;
+      const x = center(z) + (r() - 0.5) * (o0.w - 3), l = 0.6 + r() * 0.8; // courtes : la caméra passe dessous
       const m = new THREE.Mesh(new THREE.ConeGeometry(0.25 + r() * 0.3, l, 6), st); m.rotation.x = Math.PI;
       m.position.set(x, yAt(x, z) + holeH - 0.6 - l / 2 + Math.max(0, 1 - Math.abs(x - center(z)) / (o0.w / 2)) * 0.6, z); g.add(m);
     }

@@ -33,7 +33,8 @@ const scene = new THREE.Scene();
 const sky = document.createElement('canvas'); sky.width = 4; sky.height = 256;
 { const g = sky.getContext('2d'); const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#6DB8EC'); gr.addColorStop(0.6, '#B4E0F7'); gr.addColorStop(1, '#E4F5FF'); g.fillStyle = gr; g.fillRect(0, 0, 4, 256); }
 const skyTex = new THREE.CanvasTexture(sky); skyTex.colorSpace = THREE.SRGBColorSpace; scene.background = skyTex;
-scene.fog = new THREE.Fog(0xCFEAF7, 60, 230);
+// Brouillard lointain : on voit venir les pièces et gemmes de loin (jusqu'à ~280 m)
+scene.fog = new THREE.Fog(0xCFEAF7, 90, 290);
 scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.35;
 scene.add(new THREE.HemisphereLight(0xDDF1FF, 0x6A8A4A, 0.75));
@@ -42,7 +43,8 @@ sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30, near: 1, far: 140 });
 sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.03;
 scene.add(sun, sun.target);
-const camera = new THREE.PerspectiveCamera(56, 1, 0.1, 600);
+const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 700);
+let carHeight = 1.5; // hauteur du véhicule choisi : la caméra monte pour les gros véhicules
 
 function resize() {
   const w = host.clientWidth, h = host.clientHeight;
@@ -73,6 +75,7 @@ function buildCarMesh() {
   const up = eco.s.up;
   carMesh = A.car(key, { upgraded: key === 'citadine' && (up.pneus + up.susp) >= 3 });
   carMesh.rotation.order = 'YXZ';
+  carHeight = new THREE.Box3().setFromObject(carMesh).getSize(new THREE.Vector3()).y;
   scene.add(carMesh);
 }
 function placeCarOnLauncher() {
@@ -291,18 +294,25 @@ function frame(now) {
     const sideTarget = state === 'run' && !car.air ? Math.max(-4.5, Math.min(4.5, car.vx * 0.5)) : 0;
     camSide += (sideTarget - camSide) * Math.min(1, dt * 2.5);
     // La caméra suit la voiture sur toute la largeur : elle reste toujours au centre de l'écran
-    const tp = new THREE.Vector3(car.x - camSide, car.y + 5.4, car.z + 12.5);
-    const tl = new THREE.Vector3(car.x + camSide * 0.35, car.y - 5.5, car.z - 24);
+    // Vue surélevée qui regarde loin devant : la voiture occupe le bas de l'écran, la piste se lit jusqu'à l'horizon.
+    // Plus le véhicule est haut, plus la caméra monte, pour voir ce qui arrive juste devant lui.
+    const lift = Math.max(0, carHeight - 1.5) * 1.6;
+    const tp = new THREE.Vector3(car.x - camSide, car.y + 8.2 + lift, car.z + 12 + lift * 0.4);
+    const tl = new THREE.Vector3(car.x + camSide * 0.35, car.y - 4 + lift * 0.3, car.z - 40);
+    // Sous une voûte, la caméra descend pour rester dans le passage
+    const ceil = layout.ceilingAt(tp.z);
+    if (ceil < Infinity) { const gy = layout.ground(tp.x, tp.z, 1).h; tp.y = Math.min(tp.y, gy + ceil); tl.y = Math.min(tl.y, gy + ceil - 3); }
     if (state === 'launch') { camPos.copy(tp); camLook.copy(tl); }
     const snap = window.__hk && window.__hk.freeze, kx = snap ? 1 : Math.min(1, dt * 9), k = snap ? 1 : Math.min(1, dt * 5);
-    camPos.set(camPos.x + (tp.x - camPos.x) * kx, camPos.y + (tp.y - camPos.y) * k, camPos.z + (tp.z - camPos.z) * k);
+    const ky = !snap && tp.y < camPos.y - 0.5 && ceil < Infinity ? Math.min(1, dt * 12) : k;
+    camPos.set(camPos.x + (tp.x - camPos.x) * kx, camPos.y + (tp.y - camPos.y) * ky, camPos.z + (tp.z - camPos.z) * k);
     camLook.set(camLook.x + (tl.x - camLook.x) * kx, camLook.y + (tl.y - camLook.y) * k, camLook.z + (tl.z - camLook.z) * k);
     camera.position.copy(camPos); camera.lookAt(camLook);
   }
   if (car.boostLeft > 0) fovKick = Math.max(fovKick, 10);
   if (state === 'run' && car.ended && crashShake > -0.6) crashShake -= dt;
   if (crashShake > 0) { crashShake -= dt; camera.position.x += (Math.random() - 0.5) * crashShake; camera.position.y += (Math.random() - 0.5) * crashShake; }
-  fovKick *= Math.pow(0.25, dt); camera.fov = 56 + fovKick; camera.updateProjectionMatrix();
+  fovKick *= Math.pow(0.25, dt); camera.fov = 60 + fovKick; camera.updateProjectionMatrix();
   sun.position.set(car.x + 16, car.y + 30, car.z + 12); sun.target.position.set(car.x, car.y, car.z - 8);
 
   uiTimer -= dt; if (uiTimer <= 0) { uiTimer = 0.5; eco.tick(); if (state === 'home') refreshHome(); else refreshTop(); }
@@ -343,6 +353,6 @@ setScreen('home');
 refreshHome();
 requestAnimationFrame(frame);
 // Outils de test : avance rapide de la course
-window.__hk = { eco, get car() { return car; }, get layout() { return layout; }, get state() { return state; }, simulate(sec) { for (let t = 0; t < sec && state === 'run'; t += 1 / 30) runStep(1 / 30); },
+window.__hk = { eco, get car() { return car; }, get layout() { return layout; }, get state() { return state; }, get camera() { return camera; }, get world() { return world; }, get carMesh() { return carMesh; }, simulate(sec) { for (let t = 0; t < sec && state === 'run'; t += 1 / 30) runStep(1 / 30); },
   // Outil de test : fige la course (la caméra continue de suivre la voiture)
   freeze: false };

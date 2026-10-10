@@ -180,6 +180,16 @@ export function gem(s = 1) {
   const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.55 * s, 0), mat(0xF04FA0, { r: 0.15, m: 0.1, e: 0xB0136A, ei: 0.35 }));
   m.scale.y = 1.25; m.castShadow = true; return m;
 }
+// Colonne de lumière rose au-dessus d'une gemme : visible de très loin, à travers le brouillard
+let beamGeo = null, beamMat = null;
+export function gemBeam() {
+  if (!beamGeo) {
+    beamGeo = new THREE.CylinderGeometry(0.35, 0.6, 22, 10, 1, true); beamGeo.translate(0, 11, 0);
+    const t = canvasTex(4, 128, (g, W, H) => { const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, 'rgba(255,140,200,0)'); gr.addColorStop(1, 'rgba(255,140,200,1)'); g.fillStyle = gr; g.fillRect(0, 0, W, H); });
+    beamMat = new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, side: THREE.DoubleSide });
+  }
+  const m = new THREE.Mesh(beamGeo, beamMat); m.scale.y = 1 / 1.25; m.castShadow = false; return m;
+}
 function boostTex() {
   return canvasTex(256, 256, (g, W, H) => {
     g.fillStyle = '#1E9BD7'; g.fillRect(0, 0, W, H);

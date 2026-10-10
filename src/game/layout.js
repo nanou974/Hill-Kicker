@@ -36,7 +36,8 @@ export function makeLayout(level, gemsTaken = []) {
     const len = { gate: 1.2, arch: 6, canyon: 55 + rp() * 25, tunnel: 34 + rp() * 16, cave: 45 + rp() * 20, ruins: 2.4 }[kind];
     const z0 = -s, z1 = -(s + len);
     if (forks.some(f => z1 < f.z0 + 70 && z0 > f.z1 - 50)) continue;
-    const p = { kind, z0, z1, len, openings: [], top: Infinity, seed: Math.floor(rp() * 1e6), columns: [] };
+    // holeH : hauteur sous voûte des passages couverts (la caméra descend en dessous pour ne pas traverser la roche)
+    const p = { kind, z0, z1, len, openings: [], top: Infinity, seed: Math.floor(rp() * 1e6), columns: [], holeH: { arch: 10, tunnel: 9.5, cave: 9 }[kind] || 0 };
     if (kind === 'gate') {
       // Portail de ferme : une clôture haute avec deux portes ouvertes (sautable en l'air au-dessus de 2,4 m)
       p.top = 2.4; const a = rx(5); p.openings.push({ c0: a - 9, c1: a - 9, w: 6.5 }, { c0: a + 9, c1: a + 9, w: 6.5 });
@@ -220,6 +221,11 @@ export function makeLayout(level, gemsTaken = []) {
       return null;
     },
     obstacleAt,
+    // Hauteur maximale de la caméra (au-dessus du sol) à cette position : sous la voûte d'un tunnel, d'une grotte ou d'une arche
+    ceilingAt(z) {
+      for (const p of passages) if (p.holeH && z < p.z0 + 10 && z > p.z1 - 2) return p.holeH - (p.kind === 'cave' ? 3.2 : 1.4); // dans la grotte, sous les stalactites
+      return Infinity;
+    },
     // Pour le pilote automatique : où viser pour franchir le prochain passage (null si aucun à l'approche)
     passageTarget(x, z) {
       const p = passages.find(p => z < p.z0 + 60 && z > p.z1);
