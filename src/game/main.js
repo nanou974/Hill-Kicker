@@ -37,6 +37,7 @@ const skyTex = new THREE.CanvasTexture(sky); skyTex.colorSpace = THREE.SRGBColor
 scene.fog = new THREE.Fog(0xCFEAF7, 90, 290);
 scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.35;
+A.carEnvironment(renderer); // ciel extérieur pour les reflets de la carrosserie
 scene.add(new THREE.HemisphereLight(0xDDF1FF, 0x6A8A4A, 0.75));
 const sun = new THREE.DirectionalLight(0xFFF4DE, 2.6);
 sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);

@@ -1,7 +1,7 @@
 // Visionneuse interactive des 20 véhicules (glisser pour tourner autour, molette ou pincement pour zoomer).
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { car, CARS, ORDER, mat } from '../src/assets3d.js';
+import { car, CARS, ORDER, mat, carEnvironment } from '../src/assets3d.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const view = document.getElementById('view');
@@ -16,6 +16,7 @@ view.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.55;
+carEnvironment(renderer);
 scene.add(new THREE.HemisphereLight(0xDDF1FF, 0x6A7ACA, 1.2));
 const sun = new THREE.DirectionalLight(0xFFF4DE, 2.4);
 sun.position.set(-6, 12, -4); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);

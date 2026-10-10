@@ -137,6 +137,8 @@ Le booster s'active à tout moment pendant la course avec un bouton dédié. Il 
 
 20 véhicules, purement esthétiques : aucun bonus de vitesse ni d'amélioration. La citadine est offerte, les 19 autres coûtent de 2 000 à 50 000 en monnaie bleue (environ ×1,2 par véhicule). Clés de code entre parenthèses (`src/assets3d.js`).
 
+**Rendu réaliste** : peinture métallisée vernie qui reflète un ciel extérieur (ligne d'horizon sur la carrosserie), vitres teintées posées sur une cabine peinte (montants visibles), passages de roue découpés avec intérieur noir, jantes à 5 doubles branches avec lèvre chromée, disque et étrier de frein, pneus taille basse, phares à projecteur et feux de jour, feux arrière en verre rouge (doubles anneaux sur les sportives), calandre grillagée, plaques d'immatriculation, échappements chromés (doubles sur les sportives), rétroviseurs, poignées, joints de portes, bas de caisse noir et ombre de contact sous la voiture.
+
 | # | Véhicule | Prix (monnaie bleue) |
 | --- | --- | --- |
 | 1 | Citadine (`citadine`) | Offerte |
