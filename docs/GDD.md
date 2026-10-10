@@ -30,17 +30,17 @@ La piste est vue de derrière la voiture. Elle est large (4 à 5 voitures de fro
 
 - Un cercle apparaît là où le pouce se pose, n'importe où sur l'écran ; le point central suit le pouce.
 - Au sol : gauche/droite pour diriger.
-- En l'air (après une rampe) : avant = front flip, gauche/droite = barrel roll. Pas de backflip.
+- En l'air (après une rampe) : gauche/droite pour diriger, exactement comme au sol, même pendant une cascade.
 
 **Cascades**
 
-- Possibles seulement si la distance et la vitesse permettent de terminer la rotation.
-- L'atterrissage roues en bas est automatique.
-- Chaque cascade réussie donne un petit boost de vitesse.
+- **Automatiques** : au décollage d'une rampe, le jeu calcule la durée du saut et lance tout seul une cascade, en alternant front flip et tonneau, avec 1 ou 2 tours selon le temps de vol (0 si le saut est trop court).
+- La voiture revient automatiquement sur ses roues avant de toucher le sol.
+- Chaque tour réussi donne un petit boost de vitesse à l'atterrissage (+8 km/h par tour).
 
 **Plaques d'accélération** : placées selon le terrain, notamment avant les grosses côtes.
 
-**Rampes à booster** : chaque rampe porte une bande d'accélération lumineuse. La poussée est donnée dès que la voiture touche la rampe (+12 m/s, soit environ +43 km/h), avec un effet de vitesse à l'écran ; le saut qui suit est long et haut, idéal pour les cascades.
+**Rampes à booster** : chaque rampe porte une bande d'accélération lumineuse. La poussée est donnée dès que la voiture touche la rampe (+6 m/s, soit environ +22 km/h), avec un effet de vitesse à l'écran. Le saut dure environ 2 à 3 s.
 
 **Bifurcations** : 3 à 4 par niveau. Une colline rocheuse infranchissable sépare la piste en deux chemins sur 150 à 200 m. D'un côté le chemin des pièces (pièces d'or et rampe à booster), de l'autre le chemin rapide (goudron et plaques boost) ; le côté change d'une bifurcation à l'autre. Percuter la colline arrête la voiture et termine la course. Aucune rampe dans les 90 m qui précèdent une colline, pour qu'on puisse choisir son chemin au sol. Un panneau annonce chaque bifurcation.
 
@@ -177,4 +177,4 @@ Sons synthétisés en direct (Web Audio, aucun fichier) : ronronnement léger du
 
 ## Technique
 
-Jeu web en Three.js pour mobile, affichage en mode portrait uniquement. En l'air, la voiture garde 35 % de contrôle latéral. Physique des véhicules via une librairie dédiée (cannon-es ou Rapier) ou un modèle simplifié maison. Les modèles 3D procéduraux (véhicules, terrain, décors, lanceur, pièces, gemmes) sont dans `src/assets3d.js`.
+Jeu web en Three.js pour mobile, affichage en mode portrait uniquement. Physique des véhicules via une librairie dédiée (cannon-es ou Rapier) ou un modèle simplifié maison. Les modèles 3D procéduraux (véhicules, terrain, décors, lanceur, pièces, gemmes) sont dans `src/assets3d.js`.

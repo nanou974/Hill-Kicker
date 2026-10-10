@@ -4,7 +4,8 @@
 
 export const G = 9.81;
 export const TRACK_HALF = 21; // demi-largeur roulable de la piste
-export const RAMP_BOOST = 12; // poussée (m/s) dès que la voiture touche une rampe à booster (≈ +43 km/h)
+export const RAMP_BOOST = 6;  // poussée (m/s) dès que la voiture touche une rampe à booster (≈ +22 km/h)
+const TRICK_TIME = 0.8;       // durée minimale d'une rotation complète (s)
 
 // Paramètres dérivés des améliorations
 export function tuning(up) {
@@ -34,15 +35,15 @@ export function createCar() {
 }
 
 // world : { ground(x, z) -> { h, mu } , rampAt(x, z) -> ramp | null }
-// input : { steer: -1..1, up: 0..1 (joystick vers l'avant) }
+// input : { steer: -1..1 } — les cascades sont automatiques
 export function step(car, world, t, input, dt, events) {
   if (car.ended) return;
   const g = world.ground(car.x, car.z);
 
   // Latéral : direction au joystick, plus réactif quand on va vite
   const steerSpeed = 3 + Math.min(car.v, 30) * 0.32;
-  // En l'air, la voiture garde un peu de contrôle latéral (35 %) pour corriger sa trajectoire
-  const targetVx = car.air ? car.vx + (input.steer * steerSpeed * 0.35 - car.vx) * 0.5 : input.steer * steerSpeed;
+  // On dirige la voiture au sol comme en l'air, même pendant les cascades
+  const targetVx = input.steer * steerSpeed;
   car.vx += (targetVx - car.vx) * Math.min(1, dt * 6);
   car.x += car.vx * dt;
   if (Math.abs(car.x) > TRACK_HALF) { car.x = Math.sign(car.x) * TRACK_HALF; car.vx = 0; }
@@ -84,8 +85,9 @@ export function step(car, world, t, input, dt, events) {
       y += k * ramp.h;
       if (k >= 1 && car.v > 4) {
         car.air = true; car.airTime = 0;
-        car.vy = car.v * (ramp.h / ramp.l) * (ramp.boost ? 1.3 : 1.05) + (ramp.boost ? 3.5 : 1.2);
-        car.trickPitch = 0; car.trickRoll = 0;
+        car.vy = car.v * (ramp.h / ramp.l) * 0.95 + 1.0;
+        car.y = y;
+        planTrick(car, world);
         events.push({ type: 'takeoff', boost: !!ramp.boost });
       }
     }
@@ -97,30 +99,48 @@ export function step(car, world, t, input, dt, events) {
     car.pitch += (Math.atan(grade) - car.pitch) * Math.min(1, dt * 8);
     car.roll += (-car.vx * 0.012 - car.roll) * Math.min(1, dt * 8);
   } else {
-    // En l'air : pas de frottement, gravité seule. Cascades au joystick.
+    // En l'air : pas de frottement, gravité seule. La cascade se déroule toute seule.
     car.airTime += dt;
     if (car.boostLeft > 0) { car.v += 7 * dt; car.boostLeft -= dt; }
     car.z -= car.v * dt;
     car.distance = Math.max(car.distance, -car.z);
     car.vy -= G * dt;
     car.y += car.vy * dt;
-    const spin = 5.2; // rad/s
-    // Une cascade n'est lancée que si le temps de vol restant permet de la finir
     const ground = world.ground(car.x, car.z).h;
+    // Rotation automatique jusqu'au nombre de tours prévu, puis la voiture se stabilise roues en bas
+    const tr = car.trick;
+    if (tr && tr.n > 0) {
+      tr.a = Math.min(tr.target, tr.a + tr.rate * dt);
+      if (tr.kind === 'flip') car.pitch = -tr.a; else car.roll = tr.dir * tr.a;
+    }
+    // Dernier tiers de seconde : retour en douceur à l'horizontale si besoin
     const tLeft = estimateAirLeft(car.y - ground, car.vy);
-    if (input.up > 0.5 && tLeft > 0.45) car.trickPitch -= spin * dt;
-    if (Math.abs(input.steer) > 0.5 && tLeft > 0.45) car.trickRoll += Math.sign(input.steer) * spin * dt;
-    car.pitch = car.trickPitch; car.roll = car.trickRoll;
+    if (!tr || tr.a >= tr.target) { const k = Math.min(1, dt * 10); car.pitch -= car.pitch * k * (tLeft < 0.4 ? 1 : 0.3); car.roll -= car.roll * k * (tLeft < 0.4 ? 1 : 0.3); }
     if (car.y <= ground) {
       // Atterrissage automatique roues en bas, sans perte de vitesse
-      const flips = Math.round(Math.abs(car.trickPitch) / (Math.PI * 2));
-      const rolls = Math.round(Math.abs(car.trickRoll) / (Math.PI * 2));
+      const flips = tr && tr.kind === 'flip' ? tr.done() : 0;
+      const rolls = tr && tr.kind === 'roll' ? tr.done() : 0;
       const n = flips + rolls;
       if (n > 0) { car.v += 2.2 * n; events.push({ type: 'trick', flips, rolls }); }
+      car.trick = null;
       events.push({ type: 'land', airTime: car.airTime });
       car.air = false; car.y = ground; car.vy = 0; car.pitch = 0; car.roll = 0;
     }
   }
+}
+
+// Prévoit la durée du saut (balistique au-dessus du relief) et choisit la cascade automatique :
+// front flip ou tonneau en alternance, autant de tours que le temps de vol le permet (2 au maximum).
+let trickCount = 0;
+function planTrick(car, world) {
+  let x = car.x, z = car.z, y = car.y, vy = car.vy, T = 0;
+  for (; T < 8; T += 1 / 60) { vy -= G / 60; y += vy / 60; z -= car.v / 60; if (y <= world.ground(x, z).h) break; }
+  const n = Math.max(0, Math.min(2, Math.floor((T - 0.35) / TRICK_TIME)));
+  const kind = trickCount++ % 2 === 0 ? 'flip' : 'roll';
+  const target = n * Math.PI * 2;
+  const tr = { kind, n, a: 0, target, dir: Math.random() < 0.5 ? -1 : 1, rate: n > 0 ? target / Math.max(0.3, T - 0.35) : 0 };
+  tr.done = () => Math.round(tr.a / (Math.PI * 2));
+  car.trick = tr; car.pitch = 0; car.roll = 0;
 }
 
 function estimateAirLeft(height, vy) {

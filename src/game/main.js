@@ -199,7 +199,7 @@ function runStep(dt) {
   for (let i = 0; i < sub; i++) {
     const onLauncher = car.z > 3;
     if (onLauncher) { car.z -= car.v * h; car.y = world.launcherTop; car.distance = 0; }
-    else step(car, worldPhys, tune, { steer: joy.steer, up: joy.up }, h, events);
+    else step(car, worldPhys, tune, { steer: joy.steer }, h, events);
     if (!car.air && !onLauncher) {
       const p = layout.plateAt(car.x, car.z);
       if (p && car._plate !== p) { car.v += 5; car._plate = p; showTrick('BOOST !'); sfx.boost(); fovKick = Math.max(fovKick, 9); }
