@@ -109,13 +109,27 @@
     <p class="mid row"><span>+<span id="v-c-yellow">0</span><svg class="ico m"><use href="#i-coin"/></svg></span><span>+<span id="v-c-blue">250</span><svg class="ico m"><use href="#i-blue"/></svg></span></p>
     <button type="button" class="btn blue wide" id="b-chestok">SUPER</button>
   </div>
-  <div class="panel" id="p-menu" hidden>
-    <h2>OPTIONS</h2>
-    <p class="small">Sur ordinateur : flèches gauche et droite pour diriger (au sol comme en l'air), espace pour le booster. Les cascades sont automatiques sur les rampes.</p>
-    <button type="button" class="btn blue wide" id="b-sound">SON : ACTIVÉ</button>
-    <button type="button" class="btn blue wide" id="b-music">MUSIQUE : ACTIVÉE</button>
+  <div class="panel settings" id="p-menu" hidden>
+    <h2>PARAMÈTRES</h2>
+    <label class="slider"><span>MUSIQUE</span><input type="range" id="r-music" min="0" max="100" step="5"><b id="v-music">70</b></label>
+    <label class="slider"><span>EFFETS</span><input type="range" id="r-sfx" min="0" max="100" step="5"><b id="v-sfx">80</b></label>
+    <button type="button" class="btn blue wide" id="b-transfer">SAUVEGARDE</button>
     <button type="button" class="btn red wide" id="b-reset">EFFACER LA PARTIE</button>
+    <p class="small">Sur ordinateur : flèches gauche et droite pour diriger, espace pour le booster.</p>
     <button type="button" class="btn blue wide" id="b-menuclose">FERMER</button>
+  </div>
+
+  <!-- Code de transfert -->
+  <div class="panel settings" id="p-transfer" hidden>
+    <h2>SAUVEGARDE</h2>
+    <p class="small">Ton code de transfert contient toute ta partie. Note-le ou copie-le, puis entre-le sur ton nouveau téléphone.</p>
+    <div class="code" id="v-code">HK1-…</div>
+    <button type="button" class="btn blue wide" id="b-copycode">COPIER LE CODE</button>
+    <p class="small">Récupérer une partie :</p>
+    <input type="text" class="code-in" id="i-code" placeholder="HK1-XXXX-XXXX-…" autocomplete="off" autocapitalize="characters" spellcheck="false">
+    <p class="small msg" id="v-codemsg"></p>
+    <button type="button" class="btn red wide" id="b-importcode">RÉCUPÉRER</button>
+    <button type="button" class="btn blue wide" id="b-transferclose">RETOUR</button>
   </div>
 
   <!-- Garage -->

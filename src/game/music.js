@@ -5,7 +5,6 @@
 // vraie basse de synthé analogique (deux dents de scie désaccordées + sous-octave, filtre à enveloppe),
 // mélodie entêtante (un motif rythmique répété sur chaque accord) dans le registre médium-grave, jouée par un synthé chaud doublé à l'octave inférieure. Pendant la course, un arpège discret s'ajoute.
 
-const KEY = 'hill-kicker-music-off';
 const BPM = 128;
 const STEP = 60 / BPM / 4;              // durée d'une double croche
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
@@ -81,13 +80,16 @@ export class Music {
   constructor(sound) {
     this.sound = sound; this.out = null; this.timer = null; this.step = 0; this.next = 0; this.song = 0;
     this.lead = false;      // arpège actif (pendant la course)
-    try { this.off = localStorage.getItem(KEY) === '1'; } catch (e) { this.off = false; }
+    // volume de la musique (0 à 1), partagé avec les réglages du son
     // Pause quand l'appli passe en arrière-plan
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.stop(); else this.start(); });
   }
-  setOff(off) {
-    this.off = off; try { localStorage.setItem(KEY, off ? '1' : '0'); } catch (e) { /* stockage indisponible */ }
-    if (off) this.stop(); else this.start();
+  get volume() { return this.sound.volumes.music; }
+  // Volume de la musique (0 à 1) ; à 0, la musique s'arrête complètement
+  setVolume(v) {
+    this.sound.volumes.music = v; this.sound.saveVolumes();
+    if (v <= 0) { this.stop(); return; }
+    if (!this.timer) this.start(); else if (this.out) this.out.gain.setTargetAtTime(0.3 * v, this.sound.ctx.currentTime, 0.05);
   }
   setLead(on) { this.lead = on; }
   // Crée les bus de mixage (une seule fois)
@@ -109,9 +111,9 @@ export class Music {
   }
   start() {
     const ctx = this.sound.ctx;
-    if (this.off || !ctx || this.timer || document.hidden) return;
+    if (this.volume <= 0 || !ctx || this.timer || document.hidden) return;
     if (!this.out) this.build(ctx, this.sound.master);
-    this.out.gain.setTargetAtTime(0.22, ctx.currentTime, 0.4);   // fondu d'entrée
+    this.out.gain.setTargetAtTime(0.3 * this.volume, ctx.currentTime, 0.4);   // fondu d'entrée
     this.next = ctx.currentTime + 0.08;
     this.timer = setInterval(() => this.schedule(), 25);
   }

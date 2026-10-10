@@ -123,7 +123,7 @@ Le booster s'active à tout moment pendant la course avec un bouton dédié. Il 
 | Gemmes | Booster | 1 par heure, sur la piste, 2 à l'arrivée |
 | Vies | 1 vie = 1 lancement | 25 au départ et au maximum, recharge de 1 toutes les 12 min |
 
-**Musique de fond** : deux morceaux électro originaux qui alternent à chaque fin de boucle (morceau 2 en Ré mineur : Rém – Sib – Do – La puis Solm – Sib – Do – La, motif « ta-ta-ta, taaa… ta… ta, ta », basse plus continue avec septième). Morceau 1 : boucle électro énergique à 128 BPM en La mineur, synthétisée en direct (aucun fichier audio) : partie A Lam – Fa – Rém – Mi puis partie B Lam – Sol – Fa – Mi, jouées A A B B (environ 30 s). Grosse caisse lourde à chaque temps avec relances, caisse claire et clap sur 2 et 4 avec notes fantômes et roulements de fin de phrase, charleston en doubles croches. Vraie basse de synthé analogique (deux dents de scie désaccordées + sous-octave, filtre à enveloppe, légère saturation, sub grave) en croches syncopées qui « pompe » avec la grosse caisse. Mélodie entêtante : un seul motif rythmique (3 + 3 + 2, trois notes rapides, une note tenue) répété sur chaque accord, seules les hauteurs suivent l'harmonie ; registre médium-grave (Sol#3–Fa5), synthé chaud à l'attaque marquée, doublé à l'octave inférieure, avec glissade et vibrato. Pendant la course, un arpège discret s'ajoute. Fondu d'entrée, pause quand l'appli passe en arrière-plan, bouton « Musique » séparé du bouton « Son » dans les options.
+**Musique de fond** : deux morceaux électro originaux qui alternent à chaque fin de boucle (morceau 2 en Ré mineur : Rém – Sib – Do – La puis Solm – Sib – Do – La, motif « ta-ta-ta, taaa… ta… ta, ta », basse plus continue avec septième). Morceau 1 : boucle électro énergique à 128 BPM en La mineur, synthétisée en direct (aucun fichier audio) : partie A Lam – Fa – Rém – Mi puis partie B Lam – Sol – Fa – Mi, jouées A A B B (environ 30 s). Grosse caisse lourde à chaque temps avec relances, caisse claire et clap sur 2 et 4 avec notes fantômes et roulements de fin de phrase, charleston en doubles croches. Vraie basse de synthé analogique (deux dents de scie désaccordées + sous-octave, filtre à enveloppe, légère saturation, sub grave) en croches syncopées qui « pompe » avec la grosse caisse. Mélodie entêtante : un seul motif rythmique (3 + 3 + 2, trois notes rapides, une note tenue) répété sur chaque accord, seules les hauteurs suivent l'harmonie ; registre médium-grave (Sol#3–Fa5), synthé chaud à l'attaque marquée, doublé à l'octave inférieure, avec glissade et vibrato. Pendant la course, un arpège discret s'ajoute. Fondu d'entrée, pause quand l'appli passe en arrière-plan, volume réglable dans les paramètres.
 
 **Pièces sur la piste** : bronze = 1, argent = 3, or = 5, ajoutées au gain total en fin de course. À chaque ramassage, la valeur s'affiche (+1, +3, +5) avec un son propre à chaque pièce.
 
@@ -134,6 +134,12 @@ Le booster s'active à tout moment pendant la course avec un bouton dédié. Il 
 **Fin de niveau** : quand la voiture passe la ligne d'arrivée, la monnaie jaune, les quatre améliorations et celles du booster repartent de zéro pour le niveau suivant. Les monnaies bleues, les gemmes et les véhicules achetés sont conservés.
 
 **Début du jeu** : 0 monnaie jaune, 0 monnaie bleue, 0 gemme, aucun coffre disponible ; seulement les 25 vies et la citadine.
+
+## Paramètres et sauvegarde
+
+**Paramètres** (roue dentée de l'accueil) : curseur de volume de la **musique** et curseur des **effets sonores** (0 à 100, enregistrés sur le téléphone ; à 0 la musique s'arrête complètement), bouton **Sauvegarde**, bouton **Effacer la partie** (deux appuis pour confirmer).
+
+**Code de transfert** : pour changer de téléphone sans compte ni serveur. Le code contient toute la partie, encodée : niveau, monnaies jaune et bleue, gemmes, vies, améliorations, booster, véhicules achetés et véhicule choisi, record, gemmes déjà ramassées dans le niveau. Format `HK1-XXXX-XXXX-…` (40 à 60 caractères en base 32 sans I, L, O, U), avec une somme de contrôle qui refuse toute faute de frappe ; minuscules, espaces et confusions O/0, I/L/1 sont tolérés. Récupérer une partie demande une confirmation ; les minuteurs (vies, coffre, gemme horaire) repartent du moment de la récupération.
 
 ## Véhicules
 

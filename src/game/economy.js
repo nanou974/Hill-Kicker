@@ -4,6 +4,8 @@ import {
   BLUE_PER_RACE, CHEST_BLUE, GEMS_LEVEL_END, chestYellow, boosterDuration, VEHICLE_PRICES,
 } from './economy-rules.js';
 
+import { encodeSave, decodeSave } from './transfer.js';
+
 const KEY = 'hill-kicker-save-v1';
 
 function fresh(now) {
@@ -30,6 +32,9 @@ export class Economy {
   }
   save() { try { localStorage.setItem(KEY, JSON.stringify(this.s)); } catch (e) { /* stockage indisponible */ } }
   reset() { this.s = fresh(Date.now()); this.save(); }
+  // Code de transfert : exporte la partie, ou la remplace par celle d'un code (les minuteurs repartent de maintenant)
+  exportCode(order) { this.tick(); return encodeSave(this.s, order); }
+  importCode(code, order) { const d = decodeSave(code, order); this.s = { ...fresh(Date.now()), ...d }; this.save(); return d; }
 
   // Recharges dans le temps : vies (1 / 12 min, max 25) et gemmes (1 / heure)
   tick() {

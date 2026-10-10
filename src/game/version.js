@@ -1,2 +1,2 @@
 // Numéro de version affiché sur l'écran d'accueil (à garder aligné avec package.json)
-export const VERSION = '0.6.0';
+export const VERSION = '0.7.0';

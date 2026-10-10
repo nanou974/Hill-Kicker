@@ -144,3 +144,15 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 /* Gemmes restantes sur la barre de progression */
 .progress .gm { position: absolute; left: -7px; width: 26px; height: 26px; transform: translateY(50%); filter: drop-shadow(0 2px 0 rgba(27,35,64,0.6)); transition: transform 0.4s, opacity 0.4s; }
 .progress .gm.got { transform: translateY(50%) scale(1.8); opacity: 0; }
+
+/* Paramètres : curseurs de volume, code de transfert */
+.panel.settings { top: 52%; max-height: 88vh; overflow-y: auto; }
+.panel.settings .btn.wide { height: 50px; font-size: 21px; }
+.slider { display: flex; align-items: center; gap: 10px; width: 100%; font-size: 18px; -webkit-text-stroke: 0.8px var(--ink); text-shadow: 0 2px 0 var(--ink); }
+.slider span { width: 92px; text-align: left; }
+.slider b { width: 34px; font-weight: 400; text-align: right; }
+.slider input { flex: 1; accent-color: #FFC21A; height: 28px; }
+.panel .code { font-family: 'Nunito', monospace; font-weight: 900; font-size: 15px; letter-spacing: 0.5px; background: #F4F6FA; color: #1B2340; border-radius: 10px; padding: 8px 10px; word-break: break-all; user-select: all; -webkit-user-select: all; width: 100%; box-sizing: border-box; }
+.panel .code-in { width: 100%; box-sizing: border-box; font-family: 'Nunito', monospace; font-weight: 900; font-size: 15px; text-transform: uppercase; border: 3px solid #1B2340; border-radius: 10px; padding: 8px 10px; pointer-events: auto; }
+.panel .msg { min-height: 18px; color: #FFE14D; }
+.panel .msg.err { color: #FF8A8F; }

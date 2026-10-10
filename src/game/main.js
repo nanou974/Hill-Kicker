@@ -9,6 +9,7 @@ import { Economy, UPGRADES, VEHICLE_PRICES } from './economy.js';
 import { Joystick } from './input.js';
 import { Sound } from './audio.js';
 import { Music } from './music.js';
+import { decodeSave } from './transfer.js';
 import { VERSION } from './version.js';
 
 const $ = (id) => document.getElementById(id);
@@ -140,15 +141,50 @@ $('b-nolives').addEventListener('click', () => show('p-nolives', false));
 $('b-chest').addEventListener('click', () => { const r = eco.openChest(); if (!r) return; sfx.win(); $('v-c-yellow').textContent = fmt(r.yellow); $('v-c-blue').textContent = fmt(r.blue); show('p-chest', true); refreshHome(); });
 $('b-chestok').addEventListener('click', () => show('p-chest', false));
 $('b-booster').addEventListener('click', () => { if (eco.buyBooster()) { sfx.buy(); refreshHome(); } });
-function refreshSoundBtn() { $('b-sound').textContent = sfx.muted ? 'SON : COUPÉ' : 'SON : ACTIVÉ'; }
-$('b-sound').addEventListener('click', () => { sfx.setMuted(!sfx.muted); refreshSoundBtn(); });
-function refreshMusicBtn() { $('b-music').textContent = music.off ? 'MUSIQUE : COUPÉE' : 'MUSIQUE : ACTIVÉE'; }
-$('b-music').addEventListener('click', () => { music.setOff(!music.off); refreshMusicBtn(); });
-refreshMusicBtn();
-refreshSoundBtn();
-$('b-menu').addEventListener('click', () => show('p-menu', true));
+// Paramètres : volumes de la musique et des effets sonores
+function initSliders() {
+  const r = (id, v) => { $('r-' + id).value = Math.round(v * 100); $('v-' + id).textContent = Math.round(v * 100); };
+  r('music', sfx.volumes.music); r('sfx', sfx.volumes.sfx);
+}
+$('r-music').addEventListener('input', (e) => { const v = e.target.value / 100; $('v-music').textContent = e.target.value; music.setVolume(v); });
+$('r-sfx').addEventListener('input', (e) => { const v = e.target.value / 100; $('v-sfx').textContent = e.target.value; sfx.setSfxVolume(v); });
+$('r-sfx').addEventListener('change', () => sfx.coin('gold')); // petit son pour entendre le niveau choisi
+initSliders();
+// Sauvegarde : code de transfert à copier, ou à saisir pour récupérer une partie
+let importArmed = false;
+function codeMsg(text, err) { $('v-codemsg').textContent = text; $('v-codemsg').classList.toggle('err', !!err); }
+$('b-transfer').addEventListener('click', () => {
+  $('v-code').textContent = eco.exportCode(A.ORDER); $('i-code').value = ''; codeMsg(''); importArmed = false; $('b-importcode').textContent = 'RÉCUPÉRER';
+  show('p-menu', false); show('p-transfer', true);
+});
+$('b-transferclose').addEventListener('click', () => { show('p-transfer', false); show('p-menu', true); });
+$('b-copycode').addEventListener('click', async () => {
+  const code = $('v-code').textContent;
+  try { await navigator.clipboard.writeText(code); codeMsg('Code copié !'); }
+  catch (e) { const sel = getSelection(), rg = document.createRange(); rg.selectNodeContents($('v-code')); sel.removeAllRanges(); sel.addRange(rg); codeMsg('Sélectionné : appuie longuement pour copier'); }
+});
+$('i-code').addEventListener('input', () => { importArmed = false; $('b-importcode').textContent = 'RÉCUPÉRER'; codeMsg(''); });
+$('b-importcode').addEventListener('click', () => {
+  const code = $('i-code').value.trim();
+  if (!code) { codeMsg('Entre un code de transfert', true); return; }
+  // Vérifie le code avant de demander confirmation
+  try { decodeSave(code, A.ORDER); } catch (e) { codeMsg('Code refusé : ' + e.message, true); return; }
+  if (!importArmed) { importArmed = true; $('b-importcode').textContent = 'CONFIRMER'; codeMsg('Ta partie actuelle sera remplacée. Appuie sur CONFIRMER.'); return; }
+  const d = eco.importCode(code, A.ORDER);
+  importArmed = false; $('b-importcode').textContent = 'RÉCUPÉRER';
+  buildCarMesh(); buildLevel(); refreshHome();
+  $('v-code').textContent = eco.exportCode(A.ORDER);
+  codeMsg(`Partie récupérée : niveau ${d.level} !`); sfx.win();
+});
+// Effacer la partie : il faut appuyer deux fois (rien n'est effacé au premier appui)
+let resetArmed = false;
+function disarmReset() { resetArmed = false; $('b-reset').textContent = 'EFFACER LA PARTIE'; }
+$('b-menu').addEventListener('click', () => { initSliders(); disarmReset(); show('p-menu', true); });
 $('b-menuclose').addEventListener('click', () => show('p-menu', false));
-$('b-reset').addEventListener('click', () => { eco.reset(); show('p-menu', false); buildCarMesh(); buildLevel(); refreshHome(); });
+$('b-reset').addEventListener('click', () => {
+  if (!resetArmed) { resetArmed = true; $('b-reset').textContent = 'SÛR ? APPUIE ENCORE'; return; }
+  disarmReset(); eco.reset(); show('p-menu', false); buildCarMesh(); buildLevel(); refreshHome();
+});
 
 // ---------- lanceur ----------
 const hold = $('b-hold');
