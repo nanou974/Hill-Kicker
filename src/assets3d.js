@@ -91,10 +91,57 @@ export function pine(s = 1) {
   }
   return shadowAll(g);
 }
+// Pierre aux formes irrégulières : icosaèdre déformé de façon aléatoire (graine déterministe)
+const ROCK_COLORS = [0x9AA0A8, 0x868C95, 0xA39A8C, 0x8F8578, 0xB0ACA4, 0x7C8088];
+export function lumpGeo(seed, detail = 1, rough = 0.35) {
+  const r = rng(seed * 7919 + 13);
+  let g = new THREE.IcosahedronGeometry(1, detail); g.deleteAttribute('normal'); g.deleteAttribute('uv');
+  g = mergeVertices(g, 1e-4);
+  const p = g.attributes.position, v = new THREE.Vector3();
+  // quelques "plans de coupe" donnent des facettes franches, comme une roche cassée
+  const cuts = []; for (let i = 0; i < 3; i++) cuts.push([new THREE.Vector3(r() - 0.5, r() - 0.5, r() - 0.5).normalize(), 0.55 + r() * 0.3]);
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i);
+    v.multiplyScalar(1 - rough / 2 + r() * rough);
+    for (const [n, d] of cuts) { const k = v.dot(n); if (k > d) v.addScaledVector(n, d - k); }
+    p.setXYZ(i, v.x, v.y, v.z);
+  }
+  g.computeVertexNormals(); return g;
+}
+// Géométries et matériaux mis en cache : le décor en réutilise beaucoup
+const lumpCache = new Map(), rockMats = new Map();
+export function lump(seed, sx, sy, sz, color) {
+  const r = rng(seed);
+  if (!lumpCache.has(seed)) lumpCache.set(seed, lumpGeo(seed, r() < 0.5 ? 1 : 0, 0.3 + r() * 0.25)); else { r(); r(); }
+  const c = color ?? ROCK_COLORS[Math.floor(r() * ROCK_COLORS.length)];
+  if (!rockMats.has(c)) rockMats.set(c, mat(c, { r: 0.85 }));
+  const m = new THREE.Mesh(lumpCache.get(seed), rockMats.get(c));
+  m.scale.set(sx, sy, sz); return m;
+}
 export function rock(s = 1) {
-  const m = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), mat(R() > 0.5 ? 0x9AA0A8 : 0x868C95));
-  m.scale.set(1, 0.7, 1.1); m.rotation.set(R(), R() * 3, R());
+  const seed = Math.floor(R() * 24), r = rng(seed + 500);
+  const m = lump(seed, s * (0.8 + r() * 0.6), s * (0.5 + r() * 0.5), s * (0.8 + r() * 0.6));
+  m.rotation.set(r() * 0.4, r() * 6, r() * 0.4);
   return shadowAll(m);
+}
+// Rocher obstacle de la piste, cinq familles de formes : rond, aiguille, dalle, amas, pierres empilées
+export function rockShape(type, seed) {
+  const g = new THREE.Group(), r = rng(seed + 1);
+  const col = ROCK_COLORS[Math.floor(r() * ROCK_COLORS.length)];
+  const add = (sx, sy, sz, x, y, z, c = col) => { const m = lump(100 + Math.floor(r() * 200), sx, sy, sz, c); m.position.set(x, y, z); m.rotation.set((r() - 0.5) * 0.5, r() * 6, (r() - 0.5) * 0.5); g.add(m); return m; };
+  if (type === 'spire') {
+    const m = add(0.75, 2.1, 0.7, 0, 1.8, 0); m.rotation.set((r() - 0.5) * 0.25, r() * 6, (r() - 0.5) * 0.25);
+    add(0.6, 0.45, 0.55, 0.6, 0.25, 0.3); add(0.4, 0.3, 0.45, -0.5, 0.2, -0.4);
+  } else if (type === 'slab') {
+    add(1.8, 0.48, 1.3, 0, 0.32, 0); add(0.5, 0.3, 0.4, 1.4, 0.15, 0.6);
+  } else if (type === 'cluster') {
+    add(1.0, 0.85, 1.0, -0.6, 0.65, 0); add(0.8, 1.1, 0.75, 0.7, 0.85, -0.3); add(0.6, 0.5, 0.65, 0.3, 0.35, 0.9); if (r() < 0.6) add(0.45, 0.35, 0.5, -1.4, 0.25, 0.7);
+  } else if (type === 'stack') {
+    add(1.15, 0.7, 1.05, 0, 0.6, 0); add(0.85, 0.6, 0.8, 0.15, 1.75, 0.05); add(0.5, 0.45, 0.5, -0.1, 2.6, 0);
+  } else {
+    add(1.25, 1.0, 1.15, 0, 0.8, 0); add(0.55, 0.45, 0.5, 1.1, 0.3, 0.5); if (r() < 0.5) add(0.4, 0.35, 0.45, -1.0, 0.25, -0.4);
+  }
+  return shadowAll(g);
 }
 export function flowers(n, spread, y0, color) {
   const g = new THREE.Group();

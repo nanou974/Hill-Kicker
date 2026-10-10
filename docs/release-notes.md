@@ -1,9 +1,15 @@
-Corrections après les premiers essais sur téléphone.
+Des rochers de toutes les formes et des passages étroits à franchir.
 
 ## Installer / mettre à jour
-Télécharge `HillKicker-v0.2.1.apk` ci-dessous depuis ton téléphone et ouvre-le : il s'installe par-dessus la version précédente, ta progression est conservée.
+Télécharge `HillKicker-v0.3.0.apk` ci-dessous depuis ton téléphone et ouvre-le : il s'installe par-dessus la version précédente, ta progression est conservée.
 
 ## Nouveautés
-- **Caméra** : elle suit la voiture sur toute la largeur de la piste, la voiture reste au centre de l'écran même tout au bord.
-- **Ligne d'arrivée** : elle épouse le relief et couvre toute la largeur de la piste (il en manquait un morceau). L'arche est élargie en conséquence.
-- **Compteur de vitesse** : la vitesse affichée est mise à l'échelle du visuel, elle paraissait trop élevée par rapport à ce qu'on voit à l'écran. La physique et l'équilibrage ne changent pas.
+- **Rochers variés** : gros rochers arrondis, aiguilles dressées, dalles plates, amas de pierres et pierres empilées en équilibre, tous aux facettes irrégulières.
+- **Passages étroits** (2 à 4 par niveau) : la piste est bouchée sauf une ou deux ouvertures, percuter la paroi termine la course.
+  - Portail de ferme avec deux portes ouvertes (on peut le survoler en sautant)
+  - Arche rocheuse, simple ou double
+  - Tunnel éclairé dans une montagne
+  - Grotte sinueuse avec stalactites, cristaux lumineux et stalagmites à éviter
+  - Gorge entre deux falaises, avec un pont de corde
+  - Ruines antiques : on passe entre les colonnes
+- Une ligne de pièces guide vers une ouverture, et aucune rampe ne précède un passage.

@@ -15,12 +15,16 @@ function run(level, up, pct = 100, steer = 0) {
     // Pilote automatique : contourne les collines des bifurcations par le chemin rapide
     let s = steer; const f = L.forks.find(f => car.z > f.z1 && car.z < f.z0 + 60);
     if (f) { const tx = f.cx - f.coinSide * (f.w + 7.5); s = Math.max(-1, Math.min(1, (tx - car.x) * 0.4)); } else s = Math.max(-1, Math.min(1, -car.x * 0.1));
-    // ... et évite les rochers et statues en se décalant de 5 m
+    // ... vise l'ouverture des passages étroits (portails, arches, tunnels, grottes, gorges, ruines)
+    const px = L.passageTarget(car.x, car.z);
+    if (px !== null) s = Math.max(-1, Math.min(1, (px - car.x) * 0.5));
+    // ... et évite les rochers, statues et stalagmites en se décalant
     const o = L.obstacles.find(o => o.z < car.z && o.z > car.z - 30 && Math.abs(o.x - car.x) < o.r + 2.5);
     if (o) s = car.x >= o.x ? 1 : -1;
     step(car, world, t, { steer: s, up: 0 }, 1 / 60, ev);
     if (car.distance >= LEVEL_LENGTH) break;
   }
+  if (car.endReason && process.env.DEBUG) console.log('   fin :', car.endReason, Math.round(car.distance), 'm');
   return car.distance;
 }
 

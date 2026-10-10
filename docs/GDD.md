@@ -48,6 +48,16 @@ La piste est vue de derrière la voiture. Elle est large (4 à 5 voitures de fro
 
 **Placement** : la première rampe est à au moins 140 m du lanceur ; aucune pièce n'est posée sur une rampe ni juste devant.
 
+**Rochers** : cinq familles de formes générées au hasard (mais identiques d'un lancer à l'autre dans un niveau) : gros rocher arrondi, aiguille dressée, dalle plate, amas de 3 ou 4 pierres, pierres empilées en équilibre. Chaque pierre est un bloc irrégulier aux facettes cassées, aucune n'est une simple sphère.
+
+**Passages étroits** : 2 à 4 par niveau, jamais près d'une bifurcation. Toute la largeur de la piste est bouchée sauf une ou deux ouvertures ; percuter la partie pleine arrête la voiture. Aucune rampe dans les 80 m avant l'entrée, aucun rocher autour, et une ligne de pièces guide vers une ouverture.
+- **Portail de ferme** : clôture en planches avec deux portes grandes ouvertes, poteaux rayés rouge et blanc, flèche au-dessus de chaque porte. C'est le seul passage qu'on peut survoler (2,4 m de haut).
+- **Arche rocheuse** : barre de roche ocre percée d'une grande arche ou de deux arches côte à côte.
+- **Tunnel** : montagne herbeuse traversée par un tunnel de 35 à 50 m, entrées en pierres taillées, lampes le long des parois.
+- **Grotte** : 45 à 65 m, l'entrée et la sortie ne sont pas alignées (il faut tourner dedans), stalactites, cristaux lumineux et deux stalagmites qui bloquent une partie du passage.
+- **Gorge** : deux falaises à strates ocre resserrent la piste à 13 m sur 55 à 80 m ; le passage serpente, un pont de corde le traverse en hauteur.
+- **Ruines** : colonnade antique en travers de la piste, certaines colonnes tombées ou cassées, linteaux entre les colonnes intactes. On passe entre les colonnes.
+
 **Objets cassables** : caisses et bottes de foin posées sur la piste. Percutés, ils volent en éclats sans ralentir la voiture (contrairement aux obstacles).
 
 **Décors du niveau 1** : arbres, sapins, rochers, buissons et clôtures en bordure, vaches, granges, moulins, fleurs, panneaux de distance tous les 250 m et arches colorées au-dessus de la piste.
@@ -57,7 +67,7 @@ La piste est vue de derrière la voiture. Elle est large (4 à 5 voitures de fro
 **Ralentissement et surfaces**
 
 - Le relief ralentit le véhicule ; pas de perte de vitesse à l'atterrissage.
-- **Collisions** : percuter un obstacle (colline d'une bifurcation, rocher, statue ou autre élément de décor sur la piste) arrête net la voiture et termine la course, avec « CRASH ! » et une secousse de l'écran. Les obstacles n'apparaissent pas avant 260 m, ni près des rampes et des plaques. On peut survoler un obstacle en sautant assez haut.
+- **Collisions** : percuter un obstacle (colline d'une bifurcation, rocher, statue, paroi d'un passage étroit, colonne, stalagmite ou autre élément de décor sur la piste) arrête net la voiture et termine la course, avec « CRASH ! » et une secousse de l'écran. Les obstacles n'apparaissent pas avant 260 m, ni près des rampes et des plaques. On peut survoler un obstacle en sautant assez haut.
 - La surface fait varier la décélération sur le plat : terrain de base normal ; zones goudronnées (ou glace, planches lisses selon le monde) où la voiture met plus de temps à retomber à 0 km/h.
 
 **Fin de course**

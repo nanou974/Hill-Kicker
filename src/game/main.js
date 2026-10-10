@@ -271,7 +271,7 @@ function frame(now) {
   const raw = Math.min(0.25, (now - last) / 1000); const dt = Math.min(0.05, raw); last = now; clock += dt;
   if (state === 'launch' && holding && !maxed) { pct = Math.min(100, pct + raw * 62); if (pct >= 100) maxed = true; updateGauge(); }
   if (state === 'launch' && holding && maxed) $('app').classList.add('shake');
-  if (state === 'run') { runStep(dt); updateRunHud(); sfx.engineSet(Math.min(1, Math.max(0, car.v) / 40), !car.ended); }
+  if (state === 'run' && !window.__hk.freeze) { runStep(dt); updateRunHud(); sfx.engineSet(Math.min(1, Math.max(0, car.v) / 40), !car.ended); }
   if (state === 'launch') sfx.engineSet(holding ? 0.15 + pct / 100 * 0.85 : 0.05);
   if (trickTimer > 0) { trickTimer -= dt; if (trickTimer <= 0) $('trick').hidden = true; }
   world.update(car.z, clock, dt);
@@ -294,7 +294,7 @@ function frame(now) {
     const tp = new THREE.Vector3(car.x - camSide, car.y + 5.4, car.z + 12.5);
     const tl = new THREE.Vector3(car.x + camSide * 0.35, car.y - 5.5, car.z - 24);
     if (state === 'launch') { camPos.copy(tp); camLook.copy(tl); }
-    const kx = Math.min(1, dt * 9), k = Math.min(1, dt * 5);
+    const snap = window.__hk && window.__hk.freeze, kx = snap ? 1 : Math.min(1, dt * 9), k = snap ? 1 : Math.min(1, dt * 5);
     camPos.set(camPos.x + (tp.x - camPos.x) * kx, camPos.y + (tp.y - camPos.y) * k, camPos.z + (tp.z - camPos.z) * k);
     camLook.set(camLook.x + (tl.x - camLook.x) * kx, camLook.y + (tl.y - camLook.y) * k, camLook.z + (tl.z - camLook.z) * k);
     camera.position.copy(camPos); camera.lookAt(camLook);
@@ -343,4 +343,6 @@ setScreen('home');
 refreshHome();
 requestAnimationFrame(frame);
 // Outils de test : avance rapide de la course
-window.__hk = { eco, get car() { return car; }, get layout() { return layout; }, get state() { return state; }, simulate(sec) { for (let t = 0; t < sec && state === 'run'; t += 1 / 30) runStep(1 / 30); } };
+window.__hk = { eco, get car() { return car; }, get layout() { return layout; }, get state() { return state; }, simulate(sec) { for (let t = 0; t < sec && state === 'run'; t += 1 / 30) runStep(1 / 30); },
+  // Outil de test : fige la course (la caméra continue de suivre la voiture)
+  freeze: false };
