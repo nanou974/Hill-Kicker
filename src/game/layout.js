@@ -6,7 +6,7 @@ export const LEVEL_LENGTH = 3000;
 export const TRACK = { half: 22 };
 const TARMAC_MU = 0.55; // la voiture glisse mieux sur le goudron
 
-export function makeLayout(level) {
+export function makeLayout(level, gemsTaken = []) {
   const r = rng(1000 + level * 77);
   const opt = { half: TRACK.half, slope: 0.148 - (Math.min(level, 20) - 1) * 0.0009 };
   const tarmac = [], ramps = [], plates = [], coins = [], gems = [], props = [], arches = [];
@@ -40,7 +40,10 @@ export function makeLayout(level) {
   // Arches au-dessus de la piste, à intervalles réguliers
   for (let s = 250; s < LEVEL_LENGTH - 100; s += 400 + r() * 200) arches.push({ z: -s, color: [0xE5383B, 0x2F86F0, 0xFFC21A, 0x16A34A][arches.length % 4] });
   // Quelques gemmes, plutôt loin
-  for (let i = 0; i < 4; i++) gems.push({ x: (r() - 0.5) * 30, z: -(400 + i * 650 + r() * 300), taken: false });
+  // Chaque gemme a un identifiant : une fois ramassée, elle ne réapparaît plus dans ce niveau
+  for (let i = 0; i < 4; i++) gems.push({ id: i, x: (r() - 0.5) * 30, z: -(400 + i * 650 + r() * 300), taken: false });
+
+  for (const g of gems) if (gemsTaken.includes(g.id)) g.taken = true;
 
   function surfaceMu(x, z) {
     for (const t of tarmac) if (z < t.z0 && z > t.z1 && Math.abs(x - t.x) < t.w) return TARMAC_MU;

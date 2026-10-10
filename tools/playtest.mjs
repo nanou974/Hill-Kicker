@@ -46,10 +46,23 @@ await shot('4-course.png');
 await page.keyboard.down('ArrowRight'); await page.waitForTimeout(2500);
 await shot('5-course-virage.png');
 await page.keyboard.up('ArrowRight');
+// Téléporte la voiture juste avant la première gemme pour vérifier le ramassage
+await page.evaluate(() => { const hk = window.__hk; const g = hk.layout.gems[0]; hk.car.x = g.x; hk.car.z = g.z + 3; hk.car.v = 20; hk.car.distance = -hk.car.z; });
+await page.evaluate(() => window.__hk.simulate(1));
+await page.waitForTimeout(300);
+await shot('5b-gemme.png');
+console.log('gemmes après ramassage :', JSON.stringify(await page.evaluate(() => ({ taken: window.__hk.eco.s.gemsTaken, gems: window.__hk.eco.s.gems, markers: document.querySelectorAll('.progress .gm:not(.got)').length }))));
 await page.evaluate(() => window.__hk.simulate(240));
 await page.waitForTimeout(800);
 await page.waitForTimeout(500);
 await shot('6-resultats.png');
+// Nouveau lancer : la gemme ramassée ne doit plus être sur la piste ni sur la barre
+await page.click('#b-continue'); await page.waitForTimeout(500);
+await page.click('#b-play', { force: true }); await page.waitForTimeout(300);
+await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down(); await page.waitForTimeout(2600); await page.mouse.up();
+await page.waitForTimeout(1500);
+await shot('7-lancer-suivant.png');
+console.log('lancer suivant :', JSON.stringify(await page.evaluate(() => ({ markers: document.querySelectorAll('.progress .gm').length, gem0taken: window.__hk.layout.gems[0].taken }))));
 const info = await page.evaluate(() => ({ state: window.__hk.state, dist: window.__hk.car.distance, save: window.__hk.eco.s }));
 console.log(JSON.stringify(info));
 console.log('erreurs:', errors.length ? errors.join('\n') : 'aucune');

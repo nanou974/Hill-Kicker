@@ -57,7 +57,7 @@ const joy = new Joystick($('app'), $('joy-base'), $('joy-knob'));
 
 function buildLevel() {
   if (world) world.dispose();
-  layout = makeLayout(eco.s.level);
+  layout = makeLayout(eco.s.level, eco.s.gemsTaken);
   world = new World(scene, layout);
   placeCarOnLauncher();
 }
@@ -150,6 +150,7 @@ const release = () => {
   eco.useLife(); refreshTop();
   car.v = launchSpeed(tune, pct);
   runCoins = 0; runGems = 0; boostUsed = false;
+  buildGemMarkers();
   $('b-boost').disabled = eco.boosterTime() <= 0; $('b-boost').classList.remove('on');
   setScreen('run');
 };
@@ -213,7 +214,7 @@ function runStep(dt) {
     b.hit = true; sfx.smash();
     world.fling(b, car.vx * 0.6 + (b.x - car.x) * 3 + (Math.random() - 0.5) * 4, 5 + Math.random() * 4, -Math.max(6, car.v * 0.9));
   }
-  for (const g of layout.gems) if (!g.taken && Math.abs(g.z - car.z) < 1.8 && Math.abs(g.x - car.x) < 1.8) { world.take(g); runGems++; sfx.gem(); popValue('+1', 'gem'); }
+  for (const g of layout.gems) if (!g.taken && Math.abs(g.z - car.z) < 1.8 && Math.abs(g.x - car.x) < 1.8) { world.take(g); if (eco.takeGem(g.id)) { runGems++; sfx.gem(); popValue('+1', 'gem'); removeGemMarker(g.id); } }
   for (const e of events) {
     if (e.type === 'rampboost') { sfx.boost(); showTrick('RAMPE BOOST !'); fovKick = 18; }
     if (e.type === 'takeoff') sfx.takeoff();
@@ -225,6 +226,22 @@ function runStep(dt) {
   }
   if (car.distance >= LEVEL_LENGTH) { finishRace(true); return; }
   if (car.ended) finishRace(false);
+}
+
+// Gemmes restantes du niveau, placées sur la barre de progression à leur distance
+function buildGemMarkers() {
+  const track = document.querySelector('.progress .track');
+  track.querySelectorAll('.gm').forEach(e => e.remove());
+  for (const g of layout.gems) if (!g.taken) {
+    const el = document.createElement('div'); el.className = 'gm'; el.dataset.id = g.id;
+    el.style.bottom = `${Math.min(100, -g.z / LEVEL_LENGTH * 100)}%`;
+    el.innerHTML = '<svg width="24" height="26" aria-hidden="true"><use href="#i-gem"/></svg>';
+    track.appendChild(el);
+  }
+}
+function removeGemMarker(id) {
+  const el = document.querySelector(`.progress .gm[data-id="${id}"]`);
+  if (el) { el.classList.add('got'); setTimeout(() => el.remove(), 500); }
 }
 
 function updateRunHud() {
@@ -313,4 +330,4 @@ setScreen('home');
 refreshHome();
 requestAnimationFrame(frame);
 // Outils de test : avance rapide de la course
-window.__hk = { eco, get car() { return car; }, get state() { return state; }, simulate(sec) { for (let t = 0; t < sec && state === 'run'; t += 1 / 30) runStep(1 / 30); } };
+window.__hk = { eco, get car() { return car; }, get layout() { return layout; }, get state() { return state; }, simulate(sec) { for (let t = 0; t < sec && state === 'run'; t += 1 / 30) runStep(1 / 30); } };

@@ -16,6 +16,7 @@ function fresh(now) {
     booster: 0,
     cars: ['citadine'], car: 'citadine',
     best: 0,
+    gemsTaken: [], // gemmes déjà ramassées dans le niveau en cours
   };
 }
 
@@ -66,6 +67,12 @@ export class Economy {
     return { yellow: y, blue: CHEST_BLUE };
   }
 
+  // Gemme ramassée sur la piste : créditée tout de suite et retirée définitivement du niveau
+  takeGem(id) {
+    if (this.s.gemsTaken.includes(id)) return false;
+    this.s.gemsTaken.push(id); this.s.gems += 1; this.save(); return true;
+  }
+
   canLaunch() { this.tick(); return this.s.lives > 0; }
   useLife() {
     if (this.s.lives >= LIVES_MAX) this.s.lifeClock = Date.now();
@@ -76,12 +83,12 @@ export class Economy {
   endRace({ distance, coins, gems, finished }) {
     const fromDistance = Math.round(distance * this.mult());
     const r = { distance: Math.round(distance), mult: this.mult(), fromDistance, coins, yellow: fromDistance + coins, blue: BLUE_PER_RACE, gems, levelGems: 0, finished, record: distance > this.s.best };
-    this.s.yellow += r.yellow; this.s.blue += r.blue; this.s.gems += gems;
+    this.s.yellow += r.yellow; this.s.blue += r.blue; // les gemmes de la course sont déjà créditées au ramassage
     if (r.record) this.s.best = distance;
     if (finished) {
       // Fin de niveau : la monnaie jaune et toutes les améliorations repartent de zéro
       r.levelGems = GEMS_LEVEL_END; this.s.gems += GEMS_LEVEL_END;
-      this.s.level++; this.s.yellow = 0; this.s.up = { pneus: 0, susp: 0, lanceur: 0, mult: 0 }; this.s.booster = 0; this.s.best = 0;
+      this.s.level++; this.s.yellow = 0; this.s.up = { pneus: 0, susp: 0, lanceur: 0, mult: 0 }; this.s.booster = 0; this.s.best = 0; this.s.gemsTaken = [];
     }
     this.save(); return r;
   }

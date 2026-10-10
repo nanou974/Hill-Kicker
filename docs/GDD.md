@@ -91,6 +91,7 @@ Le booster s'active à tout moment pendant la course avec un bouton dédié. Il 
 - Durée d'activation définie, qui augmente à chaque amélioration.
 - Chaque amélioration coûte toujours 1 gemme.
 - Gemmes gagnées : 1 par heure, quelques-unes ramassées sur la piste, 2 en finissant le niveau (ligne d'arrivée).
+- Gemmes de la piste : 4 par niveau. Chacune ne se ramasse qu'une seule fois : elle est créditée tout de suite et disparaît pour tous les lancers suivants du niveau. Les gemmes restantes sont affichées sur la barre de progression, à leur distance.
 
 ## Économie
 
