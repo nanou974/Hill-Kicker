@@ -1,4 +1,4 @@
-// Exporte la musique de fond en fichier audio (rendu hors-ligne dans Chromium headless).
+// Exporte la musique de fond (les deux morceaux enchaînés) en fichier audio (rendu hors-ligne dans Chromium headless).
 // Usage : CHROME_PATH=... node tools/music-preview.mjs sortie.wav
 import http from 'node:http';
 import fs from 'node:fs';
@@ -17,13 +17,13 @@ await page.goto('http://localhost:8770/tools/render/index.html?s=none');
 page.on('console', m => console.log(m.text()));
 const b64 = await page.evaluate(async () => {
   const { Music } = await import('/src/game/music.js');
-  const STEP = 60 / 128 / 4, steps = 16 * 16 + 4, sr = 44100;
+  const STEP = 60 / 128 / 4, total = 2 * 16 * 16, steps = total + 4, sr = 44100; // les deux morceaux à la suite
   const ctx = new OfflineAudioContext(2, Math.ceil((steps * STEP + 1.5) * sr), sr);
   const m = new Music({ ctx, master: ctx.destination });
   m.build(ctx, ctx.destination); m.out.gain.value = 0.9;
   m.lead = true;
-  for (let i = 0; i < 16 * 16; i++) m.playStep(i, 0.05 + i * STEP);
-  m.kick(0.05 + 256 * STEP, 1);
+  for (let i = 0; i < total; i++) { m.playStep(m.step, 0.05 + i * STEP); m.advance(); }
+  m.kick(0.05 + total * STEP, 1);
   const buf = await ctx.startRendering();
   // Encodage WAV 16 bits stéréo
   const n = buf.length, L = buf.getChannelData(0), R = buf.getChannelData(1), ab = new ArrayBuffer(44 + n * 4), v = new DataView(ab);

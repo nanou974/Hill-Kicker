@@ -1,5 +1,6 @@
-// Musique de fond de Hill Kicker : boucle électro énergique originale, synthétisée en direct avec la Web Audio API.
-// 128 BPM, tonalité de La mineur. Partie A (Lam – Fa – Rém – Mi) puis partie B (Lam – Sol – Fa – Mi), jouées A A B B.
+// Musique de fond de Hill Kicker : deux morceaux électro originaux qui alternent, synthétisés en direct avec la Web Audio API.
+// 128 BPM. Morceau 1 en La mineur (Lam – Fa – Rém – Mi / Lam – Sol – Fa – Mi), morceau 2 en Ré mineur
+// (Rém – Sib – Do – La / Solm – Sib – Do – La), chacun joué A A B B (environ 30 s) puis on passe à l'autre.
 // Grosse caisse à chaque temps avec des relances, caisse claire et clap sur 2 et 4 avec des notes fantômes et des roulements,
 // vraie basse de synthé analogique (deux dents de scie désaccordées + sous-octave, filtre à enveloppe),
 // mélodie entêtante (un motif rythmique répété sur chaque accord) dans le registre médium-grave, jouée par un synthé chaud doublé à l'octave inférieure. Pendant la course, un arpège discret s'ajoute.
@@ -16,37 +17,69 @@ const CHORDS = {
   Dm: { arp: [50, 53, 57, 62], bass: 26 },
   E:  { arp: [52, 56, 59, 64], bass: 28 },
   G:  { arp: [55, 59, 62, 67], bass: 31 },
+  Bb: { arp: [53, 58, 62, 65], bass: 22 },
+  C:  { arp: [55, 60, 64, 67], bass: 24 },
+  A:  { arp: [57, 61, 64, 69], bass: 21 },
+  Gm: { arp: [55, 58, 62, 67], bass: 19 },
 };
-const PART_A = ['Am', 'F', 'Dm', 'E'], PART_B = ['Am', 'G', 'F', 'E'];
-const SONG = [...PART_A, ...PART_A, ...PART_B, ...PART_B];
+// Un motif rythmique de mélodie répété sur chaque accord : c'est la répétition qui rend l'air entêtant
+const motif = (steps, lens) => (notes) => notes.map((n, i) => [steps[i], n, lens[i]]);
 
-// Ligne de basse sur 16 pas : [pas, intervalle (0 = fondamentale, 12 = octave, 7 = quinte), durée en pas]
-const BASS = [[0, 0, 3], [3, 0, 1], [4, 0, 2], [6, 12, 2], [8, 0, 3], [11, 0, 1], [12, 7, 2], [14, 12, 2]];
-// Mélodie entêtante : un seul motif rythmique (3 + 3 + 2, puis trois notes rapides et une note tenue)
-// répété sur chaque accord ; seules les hauteurs suivent l'harmonie. La tête du motif revient à chaque mesure,
-// c'est elle qui reste dans la tête. [pas, note MIDI, durée en pas] — La mineur, registre Sol#3–Fa5.
-const HOOK = [0, 3, 6, 8, 10, 11, 12], HOOK_LEN = [3, 3, 2, 2, 1, 1, 4];
-const hook = (notes) => notes.map((n, i) => [HOOK[i], n, HOOK_LEN[i]]);
-const MEL_A = [
-  hook([76, 76, 74, 72, 74, 72, 69]),   // Lam : Mi Mi Ré Do Ré Do La
-  hook([76, 76, 74, 72, 74, 72, 65]),   // Fa  : … Fa
-  hook([77, 77, 76, 74, 76, 74, 69]),   // Rém : Fa Fa Mi Ré Mi Ré La
-  hook([76, 76, 74, 71, 72, 71, 68]),   // Mi  : Mi Mi Ré Si Do Si Sol#
-];
-const MEL_B = [
-  hook([72, 72, 71, 69, 71, 69, 64]),   // Lam : même motif, une tierce plus bas
-  hook([74, 74, 72, 71, 72, 71, 67]),   // Sol
-  hook([72, 72, 71, 69, 71, 69, 65]),   // Fa
-  hook([71, 71, 74, 72, 71, 68, 64]),   // Mi  : la fin remonte puis retombe pour relancer la boucle
-];
-const MELODY = [...MEL_A, ...MEL_A, ...MEL_B, ...MEL_B];
-// Relances de grosse caisse en plus des 4 temps (partie B plus chargée)
-const KICK_A = new Set([0, 4, 8, 12, 14]);
-const KICK_B = new Set([0, 4, 7, 8, 10, 12, 14]);
+// ---------- Morceau 1 : La mineur ----------
+// Motif « ta… ta… ta-ta, ta-ta-ta, taaa » (3 + 3 + 2, trois notes rapides, une note tenue)
+const hook1 = motif([0, 3, 6, 8, 10, 11, 12], [3, 3, 2, 2, 1, 1, 4]);
+const SONG1 = {
+  name: 'La mineur',
+  bars: ['Am', 'F', 'Dm', 'E', 'Am', 'F', 'Dm', 'E', 'Am', 'G', 'F', 'E', 'Am', 'G', 'F', 'E'],
+  melody: (() => {
+    const A = [
+      hook1([76, 76, 74, 72, 74, 72, 69]),   // Lam : Mi Mi Ré Do Ré Do La
+      hook1([76, 76, 74, 72, 74, 72, 65]),   // Fa  : … Fa
+      hook1([77, 77, 76, 74, 76, 74, 69]),   // Rém : Fa Fa Mi Ré Mi Ré La
+      hook1([76, 76, 74, 71, 72, 71, 68]),   // Mi  : Mi Mi Ré Si Do Si Sol#
+    ], B = [
+      hook1([72, 72, 71, 69, 71, 69, 64]),   // Lam : même motif, une tierce plus bas
+      hook1([74, 74, 72, 71, 72, 71, 67]),   // Sol
+      hook1([72, 72, 71, 69, 71, 69, 65]),   // Fa
+      hook1([71, 71, 74, 72, 71, 68, 64]),   // Mi  : la fin remonte puis retombe pour relancer la boucle
+    ];
+    return [...A, ...A, ...B, ...B];
+  })(),
+  // Ligne de basse sur 16 pas : [pas, intervalle (0 = fondamentale, 12 = octave, 7 = quinte), durée en pas]
+  bass: [[0, 0, 3], [3, 0, 1], [4, 0, 2], [6, 12, 2], [8, 0, 3], [11, 0, 1], [12, 7, 2], [14, 12, 2]],
+  kickA: new Set([0, 4, 8, 12, 14]), kickB: new Set([0, 4, 7, 8, 10, 12, 14]),
+};
+
+// ---------- Morceau 2 : Ré mineur ----------
+// Motif « ta-ta-ta, taaa… ta… ta, ta » : trois notes qui montent vers une note tenue, puis une réponse qui redescend
+const hook2 = motif([0, 1, 2, 4, 8, 11, 14], [1, 1, 2, 4, 3, 3, 2]);
+const SONG2 = {
+  name: 'Ré mineur',
+  bars: ['Dm', 'Bb', 'C', 'A', 'Dm', 'Bb', 'C', 'A', 'Gm', 'Bb', 'C', 'A', 'Gm', 'Bb', 'C', 'A'],
+  melody: (() => {
+    const A = [
+      hook2([69, 69, 72, 74, 77, 76, 74]),   // Rém : La La Do Ré… Fa Mi Ré
+      hook2([70, 70, 74, 77, 74, 72, 70]),   // Sib : Sib Sib Ré Fa… Ré Do Sib
+      hook2([67, 67, 72, 76, 74, 72, 67]),   // Do  : Sol Sol Do Mi… Ré Do Sol
+      hook2([69, 69, 73, 76, 73, 71, 69]),   // La  : La La Do# Mi… Do# Si La
+    ], B = [
+      hook2([67, 67, 70, 74, 72, 70, 67]),   // Solm : Sol Sol Sib Ré… Do Sib Sol
+      hook2([65, 65, 70, 74, 72, 70, 74]),   // Sib  : Fa Fa Sib Ré… Do Sib Ré
+      hook2([67, 67, 72, 76, 79, 76, 72]),   // Do   : monte jusqu'au Sol aigu
+      hook2([69, 69, 73, 76, 73, 69, 64]),   // La   : redescend pour relancer
+    ];
+    return [...A, ...A, ...B, ...B];
+  })(),
+  // Basse plus continue, avec une septième qui tire vers l'accord suivant
+  bass: [[0, 0, 2], [2, 0, 2], [4, 12, 2], [6, 0, 1], [7, 0, 1], [8, 0, 2], [10, 7, 2], [12, 12, 2], [14, 10, 2]],
+  kickA: new Set([0, 4, 6, 8, 12]), kickB: new Set([0, 3, 4, 8, 11, 12, 14]),
+};
+// Les morceaux s'enchaînent à chaque fin de boucle (environ 30 s chacun)
+const SONGS = [SONG1, SONG2];
 
 export class Music {
   constructor(sound) {
-    this.sound = sound; this.out = null; this.timer = null; this.step = 0; this.next = 0;
+    this.sound = sound; this.out = null; this.timer = null; this.step = 0; this.next = 0; this.song = 0;
     this.lead = false;      // arpège actif (pendant la course)
     try { this.off = localStorage.getItem(KEY) === '1'; } catch (e) { this.off = false; }
     // Pause quand l'appli passe en arrière-plan
@@ -91,25 +124,30 @@ export class Music {
     const ctx = this.sound.ctx;
     if (!ctx || ctx.state !== 'running') return;
     if (this.next < ctx.currentTime - 0.2) this.next = ctx.currentTime + 0.05; // rattrapage après une pause
-    while (this.next < ctx.currentTime + 0.12) { this.playStep(this.step, this.next); this.step = (this.step + 1) % (SONG.length * 16); this.next += STEP; }
+    while (this.next < ctx.currentTime + 0.12) { this.playStep(this.step, this.next); this.advance(); this.next += STEP; }
+  }
+  // Pas suivant ; en fin de boucle, on passe au morceau suivant
+  advance() {
+    this.step++;
+    if (this.step >= SONGS[this.song].bars.length * 16) { this.step = 0; this.song = (this.song + 1) % SONGS.length; }
   }
   playStep(i, t) {
-    const bar = Math.floor(i / 16), s = i % 16, ch = CHORDS[SONG[bar]];
+    const song = SONGS[this.song], bar = Math.floor(i / 16), s = i % 16, ch = CHORDS[song.bars[bar]];
     const partB = bar >= 8, lastBar = bar % 4 === 3;
     // Grosse caisse : 4 temps + relances ; la dernière mesure de chaque phrase laisse place au roulement
-    const kicks = partB ? KICK_B : KICK_A;
+    const kicks = partB ? song.kickB : song.kickA;
     if (kicks.has(s) && !(lastBar && s >= 12)) this.kick(t, s % 4 === 0 ? 1 : 0.75);
     // Caisse claire + clap sur 2 et 4, notes fantômes, roulement en doubles croches en fin de phrase
     if (s === 4 || s === 12) { this.snare(t, 0.5); this.clap(t); }
     else if (s === 7 || s === 15 || (partB && s === 10)) this.snare(t, 0.12);
     if (lastBar && s >= 12) this.snare(t, 0.18 + (s - 12) * 0.08);
-    if (lastBar && bar === SONG.length - 1 && s === 15) this.crashFx(t + STEP);
+    if (lastBar && bar === song.bars.length - 1 && s === 15) this.crashFx(t + STEP);
     // Charleston en doubles croches, ouvert sur les contretemps
     if (s % 4 === 2) this.hat(t, 0.06, 0.14); else this.hat(t, s % 2 ? 0.018 : 0.03, 0.035);
     // Basse : croches syncopées, fondamentale / octave / quinte, notes tenues
-    for (const [st, iv, len] of BASS) if (st === s) this.bass(mtof(ch.bass + 12 + iv), t, STEP * len * 0.95, s % 4 === 0);
+    for (const [st, iv, len] of song.bass) if (st === s) this.bass(mtof(ch.bass + 12 + iv), t, STEP * len * 0.95, s % 4 === 0);
     // Mélodie (toujours) et arpège discret pendant la course
-    for (const [st, n, len] of MELODY[bar]) if (st === s) this.melody(mtof(n), t, STEP * len * 0.95);
+    for (const [st, n, len] of song.melody[bar]) if (st === s) this.melody(mtof(n), t, STEP * len * 0.95);
     if (this.lead && s % 2 === 1) this.arp(mtof(ch.arp[((s - 1) / 2) % 4] + 12), t, STEP * 1.4, (bar % 4) / 3);
   }
 

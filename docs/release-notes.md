@@ -1,9 +1,8 @@
-Musique : une mélodie entêtante.
+Un deuxième morceau de musique.
 
 ## Installer / mettre à jour
-Télécharge `HillKicker-v0.5.3.apk` ci-dessous depuis ton téléphone et ouvre-le : il s'installe par-dessus la version précédente, ta progression est conservée.
+Télécharge `HillKicker-v0.6.0.apk` ci-dessous depuis ton téléphone et ouvre-le : il s'installe par-dessus la version précédente, ta progression est conservée.
 
 ## Nouveautés
-- **Mélodie refaite pour rester en tête** : un seul motif rythmique court (« ta… ta… ta-ta, ta-ta-ta, taaa ») qui revient à chaque mesure ; seules les notes changent pour suivre les accords.
-- Son de synthé plus marqué à l'attaque, doublé à l'octave inférieure pour plus de corps.
-- La basse de synthé et la batterie de la version précédente sont conservées.
+- **Deuxième morceau** en Ré mineur, dans le même style que le premier (mêmes kicks, snares, basse de synthé et synthé de mélodie), avec sa propre mélodie entêtante et sa propre ligne de basse.
+- Les deux morceaux **alternent** automatiquement à chaque fin de boucle (environ 30 s chacun), avec une cymbale à chaque enchaînement.
