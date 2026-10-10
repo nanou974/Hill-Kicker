@@ -625,8 +625,11 @@ export const CARS = {
     lower: [[8, 46], [8, 26], [32, 24], [84, 25], [91, 28], [93, 34], [93, 46]],
     cabin: [[32, 24], [43, 11], [70, 11], [80, 25]], wheels: [[24, 7.5], [76, 7.5]], lightY: 31,
     extras: (g, cx, W) => {
-      const wing = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.07, W), mat(0x14213D)); const [x, y] = at(cx, 9, 9); wing.position.set(x, y, 0); g.add(wing);
-      for (const s of [-0.5, 0.5]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.35, 0.06), mat(0x14213D)); p.position.set(x + 0.05, y - 0.2, s); g.add(p); }
+      // Aileron posé sur le coffre : deux montants relient la lame à la carrosserie
+      const [x] = at(cx, 12, 0), yTrunk = (53 - 25.6) / 25 + 0.04, y = yTrunk + 0.3;
+      const wing = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.07, W), mat(0x14213D)); wing.position.set(x, y, 0); g.add(wing);
+      for (const s of [-0.5, 0.5]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.12, y - yTrunk + 0.06, 0.06), mat(0x14213D)); p.position.set(x + 0.04, (y + yTrunk) / 2 - 0.02, s); g.add(p); }
+      for (const s of [-1, 1]) { const ep = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.2, 0.03), mat(0x14213D)); ep.position.set(x, y + 0.02, s * (W / 2 + 0.015)); g.add(ep); }
       const sc = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.12, 0.3), mat(0x14213D)); const [sx, sy] = at(cx, 57, 9.8); sc.position.set(sx, sy, 0); g.add(sc);
       const num = canvasTex(256, 64, (c, Wd, H) => { c.fillStyle = '#FFD23F'; c.fillRect(0, 0, Wd, H); c.fillStyle = '#fff'; c.beginPath(); c.arc(128, 32, 28, 0, 7); c.fill(); c.fillStyle = '#14213D'; c.font = 'bold 40px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('7', 128, 34); });
       for (const sg of [-1, 1]) { const b = new THREE.Mesh(new THREE.PlaneGeometry(3.3, 0.36), mat(0xffffff, { map: num })); const [bx, by] = at(cx, 50, 33); b.position.set(bx, by, sg * (W / 2 + 0.012)); if (sg < 0) b.rotation.y = Math.PI; g.add(b); }
@@ -655,8 +658,11 @@ export const CARS = {
     lower: [[4, 44], [4, 32], [30, 29], [70, 29], [92, 32], [96, 37], [96, 44]],
     cabin: [[38, 30], [50, 20], [64, 20], [82, 31]], roofT: 1.8, pillar: false, wheels: [[24, 7.5], [80, 7.5]], lightY: 35,
     extras: (g, cx, W) => {
-      const wing = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.06, W), mat(0x0B3B1C)); const [x, y] = at(cx, 8, 23); wing.position.set(x, y, 0); g.add(wing);
-      for (const s of [-0.55, 0.55]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 0.06), mat(0x0B3B1C)); p.position.set(x + 0.05, y - 0.12, s); g.add(p); }
+      // Aileron posé sur le capot arrière : montants jusqu'à la carrosserie
+      const [x] = at(cx, 11, 0), yTrunk = (53 - 31.2) / 25 + 0.04, y = yTrunk + 0.32;
+      const wing = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.06, W), mat(0x0B3B1C)); wing.position.set(x, y, 0); g.add(wing);
+      for (const s of [-0.55, 0.55]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.1, y - yTrunk + 0.06, 0.06), mat(0x0B3B1C)); p.position.set(x + 0.04, (y + yTrunk) / 2 - 0.02, s); g.add(p); }
+      for (const s of [-1, 1]) { const ep = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.18, 0.03), mat(0x0B3B1C)); ep.position.set(x, y + 0.02, s * (W / 2 + 0.015)); g.add(ep); }
       for (const sg of [-1, 1]) { const intake = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.18, 0.06), mat(0x0B3B1C)); const [ix, iy] = at(cx, 36, 36); intake.position.set(ix, iy, sg * (W / 2 + 0.01)); g.add(intake); }
     } },
   f1: { name: 'Formule 1', color: 0xE10600, W: 1.0, bumpers: false, ww: 0.6, track: 0.45,
