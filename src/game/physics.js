@@ -78,8 +78,9 @@ export function step(car, world, t, input, dt, events) {
     car.z -= car.v * dt;
     car.distance = Math.max(car.distance, -car.z);
     let y = world.ground(car.x, car.z).h;
-    // Rampe à booster : la poussée est donnée dès le contact, pas au sommet
-    if (ramp && ramp.boost && car._rampHit !== ramp) { car._rampHit = ramp; car.v += RAMP_BOOST; events.push({ type: 'rampboost' }); }
+    // Rampe à booster : la poussée est donnée au moindre contact de la carrosserie avec la rampe
+    const touched = world.rampTouch ? world.rampTouch(car.x, car.z) : ramp;
+    if (touched && touched.boost && car._rampHit !== touched) { car._rampHit = touched; car.v += RAMP_BOOST; events.push({ type: 'rampboost' }); }
     if (ramp) {
       const k = Math.min(1, Math.max(0, (ramp.z + ramp.l / 2 - car.z) / ramp.l));
       y += k * ramp.h;

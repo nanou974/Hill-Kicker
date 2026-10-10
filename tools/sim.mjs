@@ -7,11 +7,11 @@ import { upgradeCost, multValue } from '../src/game/economy-rules.js';
 function run(level, up, pct = 100, steer = 0) {
   const L = makeLayout(level), t = tuning(up), car = createCar();
   car.v = launchSpeed(t, pct);
-  const world = { ground: (x, z) => L.ground(x, z, t.mu), rampAt: L.rampAt, barrier: L.barrier, obstacleAt: L.obstacleAt };
+  const world = { ground: (x, z) => L.ground(x, z, t.mu), rampAt: L.rampAt, rampTouch: L.rampTouch, barrier: L.barrier, obstacleAt: L.obstacleAt };
   const ev = [];
   for (let i = 0; i < 60 * 600 && !car.ended; i++) {
-    if (!car.air && L.plateAt(car.x, car.z) && !car._plate) { car.v += 5; car._plate = true; }
-    if (!L.plateAt(car.x, car.z)) car._plate = false;
+    if (!car.air && L.plateTouch(car.x, car.z) && !car._plate) { car.v += 5; car._plate = true; }
+    if (!L.plateTouch(car.x, car.z)) car._plate = false;
     // Pilote automatique : contourne les collines des bifurcations par le chemin rapide
     let s = steer; const f = L.forks.find(f => car.z > f.z1 && car.z < f.z0 + 60);
     if (f) { const tx = f.cx - f.coinSide * (f.w + 7.5); s = Math.max(-1, Math.min(1, (tx - car.x) * 0.4)); } else s = Math.max(-1, Math.min(1, -car.x * 0.1));

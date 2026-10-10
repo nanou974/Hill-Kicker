@@ -42,7 +42,7 @@ La piste est vue de derrière la voiture. Elle est large (4 à 5 voitures de fro
 
 **Compteur de vitesse** : la vitesse affichée est mise à l'échelle du visuel (m/s × 3,6 × 0,55), car la vitesse physique réelle paraissait trop élevée à l'écran.
 
-**Rampes à booster** : chaque rampe porte une bande d'accélération lumineuse. La poussée est donnée dès que la voiture touche la rampe (+6 m/s, affiché environ +12 km/h), avec un effet de vitesse à l'écran. Le saut dure environ 2 à 3 s.
+**Rampes à booster** : chaque rampe porte une bande d'accélération lumineuse. La poussée est donnée au moindre contact de la carrosserie avec la rampe (même un bord effleuré) (+6 m/s, affiché environ +12 km/h), avec un effet de vitesse à l'écran. Le saut dure environ 2 à 3 s.
 
 **Bifurcations** : 3 à 4 par niveau. Une colline rocheuse infranchissable sépare la piste en deux chemins sur 150 à 200 m. D'un côté le chemin des pièces (pièces d'or et rampe à booster), de l'autre le chemin rapide (goudron et plaques boost) ; le côté change d'une bifurcation à l'autre. Percuter la colline arrête la voiture et termine la course. Aucune rampe dans les 90 m qui précèdent une colline, pour qu'on puisse choisir son chemin au sol. Un panneau annonce chaque bifurcation.
 
@@ -57,6 +57,8 @@ La piste est vue de derrière la voiture. Elle est large (4 à 5 voitures de fro
 - **Grotte** : 45 à 65 m, l'entrée et la sortie ne sont pas alignées (il faut tourner dedans), stalactites, cristaux lumineux et deux stalagmites qui bloquent une partie du passage.
 - **Gorge** : deux falaises à strates ocre resserrent la piste à 13 m sur 55 à 80 m ; le passage serpente, un pont de corde le traverse en hauteur.
 - **Ruines** : colonnade antique en travers de la piste, certaines colonnes tombées ou cassées, linteaux entre les colonnes intactes. On passe entre les colonnes.
+
+**Plaques boost** : le moindre contact de la carrosserie avec la plaque déclenche le boost (+5 m/s), pas seulement le centre de la voiture.
 
 **Objets cassables** : caisses et bottes de foin posées sur la piste. Percutés, ils volent en éclats sans ralentir la voiture (contrairement aux obstacles).
 

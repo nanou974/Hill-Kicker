@@ -7,6 +7,7 @@ export const LEVEL_LENGTH = 3000;
 export const TRACK = { half: 22 };
 const TARMAC_MU = 0.55; // la voiture glisse mieux sur le goudron
 const CAR_HALF = 0.9;   // demi-largeur de la voiture pour les collisions
+const CAR_HALF_LEN = 2.0; // demi-longueur de la voiture : le moindre contact avec une plaque ou une rampe compte
 
 // Passages étroits : longueur (m) et hauteur infranchissable (au-dessus du sol) de chaque type
 export const PASSAGE_KINDS = ['gate', 'arch', 'canyon', 'tunnel', 'cave', 'ruins'];
@@ -209,6 +210,15 @@ export function makeLayout(level, gemsTaken = []) {
     },
     plateAt(x, z) {
       for (const p of plates) if (Math.abs(x - p.x) < p.w / 2 && z < p.z + p.l / 2 && z > p.z - p.l / 2) return p;
+      return null;
+    },
+    // Contact de la carrosserie (et pas seulement du centre) avec une plaque boost ou une rampe
+    plateTouch(x, z) {
+      for (const p of plates) if (Math.abs(x - p.x) < p.w / 2 + CAR_HALF && Math.abs(z - p.z) < p.l / 2 + CAR_HALF_LEN) return p;
+      return null;
+    },
+    rampTouch(x, z) {
+      for (const p of ramps) if (Math.abs(x - p.x) < p.w / 2 + CAR_HALF && Math.abs(z - p.z) < p.l / 2 + CAR_HALF_LEN) return p;
       return null;
     },
     isTarmac(x, z) { return surfaceMu(x, z) < 1; },

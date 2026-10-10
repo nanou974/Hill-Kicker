@@ -201,7 +201,7 @@ $('b-nextlevel').addEventListener('click', () => { show('p-level', false); build
 function backHome() { buildLevel(); setScreen('home'); refreshHome(); }
 
 function runStep(dt) {
-  const worldPhys = { ground: (x, z) => layout.ground(x, z, tune.mu), rampAt: layout.rampAt, barrier: layout.barrier, obstacleAt: layout.obstacleAt };
+  const worldPhys = { ground: (x, z) => layout.ground(x, z, tune.mu), rampAt: layout.rampAt, rampTouch: layout.rampTouch, barrier: layout.barrier, obstacleAt: layout.obstacleAt };
   const events = [];
   const sub = 4, h = dt / sub;
   for (let i = 0; i < sub; i++) {
@@ -209,7 +209,7 @@ function runStep(dt) {
     if (onLauncher) { car.z -= car.v * h; car.y = world.launcherTop; car.distance = 0; }
     else step(car, worldPhys, tune, { steer: joy.steer }, h, events);
     if (!car.air && !onLauncher) {
-      const p = layout.plateAt(car.x, car.z);
+      const p = layout.plateTouch(car.x, car.z); // le moindre contact avec la plaque déclenche le boost
       if (p && car._plate !== p) { car.v += 5; car._plate = p; showTrick('BOOST !'); sfx.boost(); fovKick = Math.max(fovKick, 9); }
     }
   }
