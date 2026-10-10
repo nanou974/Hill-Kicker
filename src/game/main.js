@@ -51,7 +51,8 @@ let layout, world, carMesh, car, tune;
 let pct = 0, holding = false, maxed = false;
 let runCoins = 0, runGems = 0, boostUsed = false, trickTimer = 0;
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
-let camSide = 0; // décalage latéral de la caméra : vue de trois quarts dans les virages
+let camSide = 0;  // décalage latéral de la caméra : vue de trois quarts dans les virages
+let fovKick = 0;  // effet de vitesse (élargissement du champ de vision) quand un boost propulse la voiture
 const joy = new Joystick($('app'), $('joy-base'), $('joy-knob'));
 
 function buildLevel() {
@@ -160,7 +161,7 @@ $('b-launchback').addEventListener('click', () => { setScreen('home'); refreshHo
 // ---------- course ----------
 function useBoost() {
   if (state !== 'run' || boostUsed || eco.boosterTime() <= 0) return;
-  boostUsed = true; car.boostLeft = eco.boosterTime(); $('b-boost').classList.add('on'); $('b-boost').disabled = true; sfx.boost();
+  boostUsed = true; car.boostLeft = eco.boosterTime(); $('b-boost').classList.add('on'); $('b-boost').disabled = true; sfx.boost(); fovKick = Math.max(fovKick, 12);
 }
 $('b-boost').addEventListener('click', useBoost);
 addEventListener('keydown', (e) => { if (e.code === 'Space') { e.preventDefault(); if (state === 'launch' && !holding) hold.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1 })); else useBoost(); } });
@@ -199,7 +200,7 @@ function runStep(dt) {
     else step(car, worldPhys, tune, { steer: joy.steer, up: joy.up }, h, events);
     if (!car.air && !onLauncher) {
       const p = layout.plateAt(car.x, car.z);
-      if (p && car._plate !== p) { car.v += 5; car._plate = p; showTrick('BOOST !'); sfx.boost(); }
+      if (p && car._plate !== p) { car.v += 5; car._plate = p; showTrick('BOOST !'); sfx.boost(); fovKick = Math.max(fovKick, 9); }
     }
   }
   // Pièces et gemmes
@@ -207,9 +208,15 @@ function runStep(dt) {
     const gy = layout.ground(c.x, c.z, 1).h + 0.95;
     if (Math.abs(car.y + 0.6 - gy) < 2.2) { world.take(c); runCoins += COIN_VALUE[c.kind]; sfx.coin(c.kind); popValue(`+${COIN_VALUE[c.kind]}`, c.kind); }
   }
+  // Objets cassables : ils volent en éclats sans ralentir la voiture
+  for (const b of layout.props) if (!b.hit && b.mesh && Math.abs(b.z - car.z) < 1.6 && Math.abs(b.x - car.x) < 1.5 && car.y < layout.ground(b.x, b.z, 1).h + 1.4) {
+    b.hit = true; sfx.smash();
+    world.fling(b, car.vx * 0.6 + (b.x - car.x) * 3 + (Math.random() - 0.5) * 4, 5 + Math.random() * 4, -Math.max(6, car.v * 0.9));
+  }
   for (const g of layout.gems) if (!g.taken && Math.abs(g.z - car.z) < 1.8 && Math.abs(g.x - car.x) < 1.8) { world.take(g); runGems++; sfx.gem(); popValue('+1', 'gem'); }
   for (const e of events) {
-    if (e.type === 'takeoff') { sfx.takeoff(); if (e.boost) { sfx.boost(); showTrick('RAMPE BOOST !'); } }
+    if (e.type === 'rampboost') { sfx.boost(); showTrick('RAMPE BOOST !'); fovKick = 18; }
+    if (e.type === 'takeoff') sfx.takeoff();
     if (e.type === 'land') sfx.land();
     if (e.type === 'trick') {
       const parts = []; if (e.flips) parts.push(e.flips > 1 ? `${e.flips} FRONT FLIPS` : 'FRONT FLIP'); if (e.rolls) parts.push(e.rolls > 1 ? `${e.rolls} TONNEAUX` : 'TONNEAU');
@@ -242,7 +249,7 @@ function frame(now) {
   if (state === 'run') { runStep(dt); updateRunHud(); sfx.engineSet(Math.min(1, Math.max(0, car.v) / 40), !car.ended); }
   if (state === 'launch') sfx.engineSet(holding ? 0.15 + pct / 100 * 0.85 : 0.05);
   if (trickTimer > 0) { trickTimer -= dt; if (trickTimer <= 0) $('trick').hidden = true; }
-  world.update(car.z, clock);
+  world.update(car.z, clock, dt);
   world.start.visible = state !== 'run' || car.z > -1;
 
   // Voiture
@@ -264,6 +271,8 @@ function frame(now) {
     camPos.lerp(tp, Math.min(1, dt * 5)); camLook.lerp(tl, Math.min(1, dt * 5));
     camera.position.copy(camPos); camera.lookAt(camLook);
   }
+  if (car.boostLeft > 0) fovKick = Math.max(fovKick, 10);
+  fovKick *= Math.pow(0.25, dt); camera.fov = 56 + fovKick; camera.updateProjectionMatrix();
   sun.position.set(car.x + 16, car.y + 30, car.z + 12); sun.target.position.set(car.x, car.y, car.z - 8);
 
   uiTimer -= dt; if (uiTimer <= 0) { uiTimer = 0.5; eco.tick(); if (state === 'home') refreshHome(); else refreshTop(); }

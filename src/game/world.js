@@ -12,7 +12,7 @@ export class World {
   constructor(scene, layout) {
     this.scene = scene; this.L = layout; this.chunks = new Map();
     this.root = new THREE.Group(); scene.add(this.root);
-    this.coinMeshes = []; this.gemMeshes = [];
+    this.coinMeshes = []; this.gemMeshes = []; this.flying = [];
     this.buildStatic();
   }
   dispose() { this.scene.remove(this.root); this.root.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
@@ -38,13 +38,27 @@ export class World {
   }
 
   // Charge les tronçons proches de la voiture, décharge les autres
-  update(carZ, time) {
+  update(carZ, time, dt = 0) {
     const ci = Math.floor(-carZ / CHUNK);
     for (let i = ci - BEHIND; i <= ci + AHEAD; i++) if (i >= -1 && !this.chunks.has(i) && i * CHUNK < LEVEL_LENGTH + CHUNK) this.chunks.set(i, this.buildChunk(i));
     for (const [i, g] of this.chunks) if (i < ci - BEHIND || i > ci + AHEAD) { this.root.remove(g); g.traverse(o => { if (o.geometry) o.geometry.dispose(); }); this.chunks.delete(i); }
     // Animation des pièces et gemmes
     for (const m of this.coinMeshes) if (m.parent) { m.rotation.y = time * 2.4 + m.userData.phase; }
     for (const m of this.gemMeshes) if (m.parent) { m.rotation.y = time * 1.6; m.position.y = m.userData.y + Math.sin(time * 2.5) * 0.15; }
+    // Objets percutés : ils s'envolent en tournoyant puis disparaissent
+    for (const f of this.flying) {
+      f.t += dt; f.vy -= 9.81 * dt;
+      f.m.position.x += f.vx * dt; f.m.position.y += f.vy * dt; f.m.position.z += f.vz * dt;
+      f.m.rotation.x += f.sx * dt; f.m.rotation.z += f.sz * dt;
+      const s = Math.max(0.01, 1 - Math.max(0, f.t - 1.1) * 2); f.m.scale.setScalar(s);
+      if (f.t > 1.6 && f.m.parent) f.m.parent.remove(f.m);
+    }
+    this.flying = this.flying.filter(f => f.t <= 1.6);
+  }
+
+  fling(prop, vx, vy, vz) {
+    if (!prop.mesh) return;
+    this.flying.push({ m: prop.mesh, vx, vy, vz, sx: (Math.random() - 0.5) * 14, sz: (Math.random() - 0.5) * 14, t: 0 });
   }
 
   buildChunk(i) {
@@ -82,12 +96,27 @@ export class World {
 
     // Décors sur les bas-côtés
     const r = A.rng(5000 + L.level * 131 + i);
-    for (let k = 0; k < 46; k++) {
-      const side = r() > 0.5 ? 1 : -1, x = side * (L.opt.half + 2.5 + Math.pow(r(), 1.8) * 60), z = z0 - r() * CHUNK;
+    const ground = (x, z) => L.ground(x, z, 1).h;
+    const put = (o, x, z, dy = 0, rot = r() * 6) => { o.position.set(x, ground(x, z) + dy, z); o.rotation.y = rot; g.add(o); return o; };
+    // Arbres, sapins, rochers et bottes de foin, plus denses près de la piste
+    for (let k = 0; k < 90; k++) {
+      const side = r() > 0.5 ? 1 : -1, x = side * (L.opt.half + 3 + Math.pow(r(), 2.2) * 65), z = z0 - r() * CHUNK;
       const t = r(); let o;
-      if (t < 0.45) o = A.tree(1.2 + r() * 1.4, k % 4); else if (t < 0.7) o = A.pine(1.3 + r() * 1.2); else if (t < 0.85) o = A.rock(0.6 + r() * 1.4); else o = A.hay(1);
-      o.position.set(x, L.ground(x, z, 1).h - 0.1, z); o.rotation.y = r() * 6; g.add(o);
+      if (t < 0.42) o = A.tree(1.2 + r() * 1.4, k % 4); else if (t < 0.66) o = A.pine(1.3 + r() * 1.2); else if (t < 0.82) o = A.rock(0.6 + r() * 1.4); else o = A.hay(1);
+      put(o, x, z, -0.1);
     }
+    // Buissons en bordure de piste
+    for (let k = 0; k < 36; k++) { const side = r() > 0.5 ? 1 : -1; put(A.bush(0.8 + r() * 0.8, k % 4), side * (L.opt.half + 0.8 + r() * 3), z0 - r() * CHUNK); }
+    // Clôtures le long de la piste, par tronçons
+    for (let zz = z0 - 4; zz > z1 + 30; zz -= 34) for (const side of [-1, 1]) if (r() < 0.65) put(A.fence(24), side * (L.opt.half + 1.6), zz, 0, 0);
+    // Rochers et fleurs dans les champs, quelques vaches, une grange de temps en temps
+    for (let k = 0; k < 4; k++) { const side = r() > 0.5 ? 1 : -1; const x0 = side * (L.opt.half + 10 + r() * 18), zc = z0 - r() * CHUNK; for (let q = 0; q < 2 + Math.floor(r() * 3); q++) put(A.cow(1), x0 + (r() - 0.5) * 8, zc + (r() - 0.5) * 8); }
+    if (i % 2 === 0) { const side = r() > 0.5 ? 1 : -1; put(A.barn(1), side * (L.opt.half + 22 + r() * 14), z0 - r() * CHUNK, 0, side > 0 ? -Math.PI / 2 : Math.PI / 2); }
+    for (let k = 0; k < 10; k++) { const side = r() > 0.5 ? 1 : -1; const f = A.flowers(10, 4, 0, [0xF48FB1, 0xFFE27A, 0xFFFFFF, 0xB794F4][k % 4]); put(f, side * (L.opt.half + 3 + r() * 20), z0 - r() * CHUNK, 0.1); }
+    // Panneaux de distance tous les 250 m
+    for (let d = 250; d < LEVEL_LENGTH; d += 250) if (-d <= z0 && -d > z1) put(A.sign(`${d} m`, 1.3), (d / 250) % 2 ? L.opt.half + 2.5 : -(L.opt.half + 2.5), -d, 0, 0);
+    // Arches au-dessus de la piste
+    for (const a of L.arches) if (a.z <= z0 && a.z > z1) { const m = A.arch(2 * L.opt.half + 4, a.color); put(m, 0, a.z, -0.2, 0); }
     if (i % 3 === 1) { const wm = A.windmill(1.4); const x = (r() > 0.5 ? 1 : -1) * (L.opt.half + 26 + r() * 20), z = z0 - r() * CHUNK; wm.position.set(x, L.ground(x, z, 1).h - 0.4, z); wm.rotation.y = r() * 6; g.add(wm); }
     for (let k = 0; k < 40; k++) {
       const x = (r() - 0.5) * 2 * (L.opt.half - 1), z = z0 - r() * CHUNK;
@@ -100,6 +129,7 @@ export class World {
     for (const p of L.ramps) if (inChunk(p.z)) { const m = A.ramp(p.w, p.l, p.h, p.boost); m.position.set(p.x, L.ground(p.x, p.z, 1).h - 0.05, p.z); m.rotation.x = slope(L, p.x, p.z); g.add(m); }
     for (const p of L.plates) if (inChunk(p.z)) { const m = A.boostPad(p.w, p.l); m.position.set(p.x, L.ground(p.x, p.z, 1).h + 0.06, p.z); m.rotation.x = slope(L, p.x, p.z); g.add(m); }
     for (const cn of L.coins) if (inChunk(cn.z) && !cn.taken) { const m = A.coin(cn.kind, cn.kind === 'gold' ? 1.1 : cn.kind === 'silver' ? 1 : 0.9); m.position.set(cn.x, L.ground(cn.x, cn.z, 1).h + 0.95, cn.z); m.userData.phase = cn.z * 0.3; m.userData.ref = cn; cn.mesh = m; g.add(m); this.coinMeshes.push(m); }
+    for (const b of L.props) if (inChunk(b.z) && !b.hit) { const m = b.kind === 'crate' ? A.crate(1) : A.hayBlock(1); m.position.set(b.x, L.ground(b.x, b.z, 1).h, b.z); m.rotation.y = b.rot; b.mesh = m; g.add(m); }
     for (const gm of L.gems) if (inChunk(gm.z) && !gm.taken) { const m = A.gem(1); const y = L.ground(gm.x, gm.z, 1).h + 1.4; m.position.set(gm.x, y, gm.z); m.userData.y = y; gm.mesh = m; g.add(m); this.gemMeshes.push(m); }
     this.root.add(g);
     return g;

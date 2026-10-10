@@ -40,7 +40,11 @@ La piste est vue de derrière la voiture. Elle est large (4 à 5 voitures de fro
 
 **Plaques d'accélération** : placées selon le terrain, notamment avant les grosses côtes.
 
-**Rampes à booster** : chaque rampe porte une bande d'accélération lumineuse qui donne un gain de vitesse au décollage (+4 m/s, soit environ +14 km/h).
+**Rampes à booster** : chaque rampe porte une bande d'accélération lumineuse. La poussée est donnée dès que la voiture touche la rampe (+12 m/s, soit environ +43 km/h), avec un effet de vitesse à l'écran ; le saut qui suit est long et haut, idéal pour les cascades.
+
+**Objets cassables** : caisses et bottes de foin posées sur la piste. Percutés, ils volent en éclats sans ralentir la voiture (la règle « seul le relief ralentit » est conservée).
+
+**Décors du niveau 1** : arbres, sapins, rochers, buissons et clôtures en bordure, vaches, granges, moulins, fleurs, panneaux de distance tous les 250 m et arches colorées au-dessus de la piste.
 
 **Caméra** : derrière la voiture ; dans les virages, elle glisse du côté opposé pour une vue de trois quarts, et la voiture s'oriente dans le virage.
 

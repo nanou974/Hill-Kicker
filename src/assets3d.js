@@ -531,3 +531,67 @@ export function tracks(scene, opt, x, z0, len) {
   const m = new THREE.MeshStandardMaterial({ color: 0x3B7F2A, transparent: true, opacity: 0.22, roughness: 1, envMapIntensity: 0 });
   for (const s of [-0.62, 0.62]) for (let i = 0; i < len; i++) { const z = z0 + i * 0.5; const q = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.55), m); q.rotation.x = -Math.PI / 2 + slopeRot(x + s, z, opt); place(q, x + s, z, opt, 0.06); scene.add(q); }
 }
+
+// ---------- décors supplémentaires ----------
+export function bush(s = 1, hue = 0) {
+  const g = new THREE.Group(); const cols = [0x3E8E37, 0x4FA548, 0x5DB04A, 0x2F7A2E];
+  for (let i = 0; i < 3; i++) { const b = new THREE.Mesh(new THREE.IcosahedronGeometry((0.55 - i * 0.1) * s, 0), mat(cols[(i + hue) % 4])); b.position.set((i - 1) * 0.45 * s, 0.4 * s, (i % 2 ? 0.2 : -0.15) * s); g.add(b); }
+  return shadowAll(g);
+}
+// Clôture en bois : poteaux tous les 3 m et deux lisses, le long de l'axe z
+export function fence(len = 12) {
+  const g = new THREE.Group(); const wood = mat(0xB98A55), dark = mat(0x8A6236);
+  const n = Math.max(2, Math.round(len / 3) + 1);
+  for (let i = 0; i < n; i++) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.1, 0.18), dark); p.position.set(0, 0.55, -i * (len / (n - 1))); g.add(p); }
+  for (const y of [0.45, 0.85]) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.12, len), wood); r.position.set(0, y, -len / 2); g.add(r); }
+  return shadowAll(g);
+}
+// Arche de passage au-dessus de la piste
+export function arch(span = 46, color = 0xE5383B) {
+  const g = new THREE.Group(); const stone = mat(0xB8BEC8), dark = mat(0x8C939E);
+  for (const s of [-1, 1]) {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(2.2, 9, 2.2), stone); p.position.set(s * span / 2, 4.5, 0); g.add(p);
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.6, 2.8), dark); cap.position.set(s * span / 2, 9.2, 0); g.add(cap);
+  }
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(span + 3, 1.6, 1.8), mat(color)); beam.position.y = 9.6; g.add(beam);
+  for (let i = 0; i < 9; i++) { const f = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.4, 4), mat(i % 2 ? 0xFFD23F : 0x2F86F0)); f.rotation.x = Math.PI; f.position.set(-span / 2 + 3 + i * (span - 6) / 8, 8.3, 0); g.add(f); }
+  return shadowAll(g);
+}
+export function barn(s = 1) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(8 * s, 5 * s, 10 * s), mat(0xB8452F)); body.position.y = 2.5 * s; g.add(body);
+  const roof = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 6 * s, 3.2 * s, 4, 1), mat(0x5A3A2A)); roof.rotation.y = Math.PI / 4; roof.scale.set(1, 1, 1.45); roof.position.y = 6.6 * s; g.add(roof);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(3.4 * s, 3.4 * s, 0.1), mat(0xF4EADB)); door.position.set(0, 1.7 * s, 5.02 * s); g.add(door);
+  const x1 = new THREE.Mesh(new THREE.BoxGeometry(4.6 * s, 0.25 * s, 0.12), mat(0xB8452F)); x1.rotation.z = 0.78; x1.position.set(0, 1.7 * s, 5.08 * s); g.add(x1);
+  const x2 = x1.clone(); x2.rotation.z = -0.78; g.add(x2);
+  return shadowAll(g);
+}
+export function cow(s = 1) {
+  const g = new THREE.Group(); const w = mat(0xF4F4F0, { flat: false }), b = mat(0x24262B, { flat: false }), p = mat(0xF2A5B0, { flat: false });
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.55 * s, 1.1 * s, 4, 10), w); body.rotation.z = Math.PI / 2; body.position.y = 1.1 * s; g.add(body);
+  for (const [x, z] of [[-0.2, 0.3], [0.4, -0.25]]) { const sp = new THREE.Mesh(new THREE.SphereGeometry(0.32 * s, 10, 8), b); sp.scale.set(1, 0.7, 0.4); sp.position.set(x * s, 1.25 * s, z > 0 ? 0.48 * s : -0.48 * s); g.add(sp); }
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.55 * s, 0.55 * s, 0.5 * s), w); head.position.set(1.15 * s, 1.35 * s, 0); g.add(head);
+  const muzzle = new THREE.Mesh(new THREE.BoxGeometry(0.2 * s, 0.32 * s, 0.46 * s), p); muzzle.position.set(1.48 * s, 1.25 * s, 0); g.add(muzzle);
+  for (const [x, z] of [[-0.55, -0.3], [-0.55, 0.3], [0.55, -0.3], [0.55, 0.3]]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.1 * s, 0.1 * s, 0.7 * s, 6), w); l.position.set(x * s, 0.35 * s, z * s); g.add(l); }
+  for (const z of [-0.2, 0.2]) { const h = new THREE.Mesh(new THREE.ConeGeometry(0.06 * s, 0.25 * s, 5), mat(0xE8DCC2)); h.position.set(1.1 * s, 1.72 * s, z * s); g.add(h); }
+  return shadowAll(g);
+}
+export function sign(text = '→', s = 1) {
+  const g = new THREE.Group();
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08 * s, 0.08 * s, 2.2 * s, 6), mat(0x8A6236)); post.position.y = 1.1 * s; g.add(post);
+  const t = canvasTex(256, 128, (c, W, H) => { c.fillStyle = '#FFC21A'; c.fillRect(0, 0, W, H); c.strokeStyle = '#1B2340'; c.lineWidth = 10; c.strokeRect(5, 5, W - 10, H - 10); c.fillStyle = '#1B2340'; c.font = 'bold 72px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, W / 2, H / 2 + 4); });
+  const board = new THREE.Mesh(new THREE.BoxGeometry(1.6 * s, 0.8 * s, 0.08), [mat(0xFFC21A), mat(0xFFC21A), mat(0xFFC21A), mat(0xFFC21A), mat(0xffffff, { map: t }), mat(0xffffff, { map: t })]);
+  board.position.y = 2.1 * s; g.add(board);
+  return shadowAll(g);
+}
+// Objets cassables posés sur la piste : ils ne ralentissent pas, ils volent en éclats
+export function crate(s = 1) {
+  const t = canvasTex(128, 128, (c, W, H) => { c.fillStyle = '#C98B4A'; c.fillRect(0, 0, W, H); c.strokeStyle = '#7A4A1E'; c.lineWidth = 12; c.strokeRect(6, 6, W - 12, H - 12); c.beginPath(); c.moveTo(10, 10); c.lineTo(W - 10, H - 10); c.moveTo(W - 10, 10); c.lineTo(10, H - 10); c.stroke(); });
+  const m = new THREE.Mesh(new THREE.BoxGeometry(1.1 * s, 1.1 * s, 1.1 * s), mat(0xffffff, { map: t })); m.position.y = 0.55 * s;
+  const g = new THREE.Group(); g.add(m); return shadowAll(g);
+}
+export function hayBlock(s = 1) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(1.6 * s, 0.9 * s, 1 * s), mat(0xE2B75A)); m.position.y = 0.45 * s;
+  const band = new THREE.Mesh(new THREE.BoxGeometry(1.62 * s, 0.92 * s, 0.08), mat(0xA8792E)); band.position.y = 0.45 * s;
+  const g = new THREE.Group(); g.add(m, band); return shadowAll(g);
+}

@@ -55,6 +55,7 @@ export class Sound {
   trick() { [784, 988, 1175, 1568].forEach((f, i) => this.tone(f, 0.14, 'square', 0.06, i * 0.07)); }
   fail() { this.tone(330, 0.25, 'sawtooth', 0.07, 0, 160); this.noise(0.4, 0.12, 500); }
   launch() { this.noise(0.35, 0.25, 900); this.tone(180, 0.4, 'sawtooth', 0.08, 0, 520); }
+  smash() { this.noise(0.25, 0.35, 650); this.noise(0.12, 0.25, 1800, 0.03); this.tone(140, 0.12, 'square', 0.06, 0, 70); }
   click() { this.tone(660, 0.05, 'square', 0.04); }
   buy() { this.tone(880, 0.07, 'square', 0.05); this.tone(1320, 0.12, 'square', 0.05, 0.06); }
   win() { [523, 659, 784, 1046, 1318].forEach((f, i) => this.tone(f, 0.25, 'square', 0.06, i * 0.1)); }
