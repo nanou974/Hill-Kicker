@@ -1,42 +1,35 @@
-// Musique de fond de Hill Kicker : boucle pop-chiptune originale, synthétisée en direct avec la Web Audio API.
-// 132 BPM, couplet (Do – Lam – Fa – Sol) puis refrain (Fa – Sol – Mim – Lam), joués A A B B en boucle.
-// Batterie (grosse caisse, caisse claire, charleston), basse rebondissante, accords en contretemps et mélodie.
-// La mélodie n'est jouée que pendant la course : à l'accueil, seul l'accompagnement tourne.
+// Musique de fond de Hill Kicker : boucle électro énergique originale, synthétisée en direct avec la Web Audio API.
+// 128 BPM, tonalité de La mineur. Partie A (Lam – Fa – Rém – Mi) puis partie B (Lam – Sol – Fa – Mi), jouées A A B B.
+// Grosse caisse à chaque temps avec des relances, caisse claire et clap sur 2 et 4 avec des notes fantômes et des roulements,
+// basse lourde (sub + basse saturée) en doubles croches, compressée au rythme de la grosse caisse.
+// Pendant la course, un arpège sombre s'ajoute par-dessus.
 
 const KEY = 'hill-kicker-music-off';
-const BPM = 132;
+const BPM = 128;
 const STEP = 60 / BPM / 4;              // durée d'une double croche
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
 
-// Accords (notes MIDI) et fondamentale de basse, une mesure chacun
+// Accords (notes MIDI de l'arpège) et fondamentale de basse, une mesure chacun
 const CHORDS = {
-  C: { notes: [60, 64, 67], bass: 36 },
-  Am: { notes: [57, 60, 64], bass: 33 },
-  F: { notes: [57, 60, 65], bass: 29 },
-  G: { notes: [59, 62, 67], bass: 31 },
-  Em: { notes: [59, 64, 67], bass: 28 },
+  Am: { arp: [57, 60, 64, 69], bass: 33 },
+  F:  { arp: [53, 57, 60, 65], bass: 29 },
+  Dm: { arp: [50, 53, 57, 62], bass: 26 },
+  E:  { arp: [52, 56, 59, 64], bass: 28 },
+  G:  { arp: [55, 59, 62, 67], bass: 31 },
 };
-const VERSE = ['C', 'Am', 'F', 'G'], CHORUS = ['F', 'G', 'Em', 'Am'];
-// Mélodie : [pas de départ (sur 16), note MIDI, durée en pas]
-const MEL_VERSE = [
-  [[0, 76, 2], [2, 79, 2], [4, 84, 2], [6, 79, 2], [8, 81, 2], [10, 79, 2], [12, 76, 4]],
-  [[0, 76, 2], [2, 74, 2], [4, 72, 2], [6, 74, 2], [8, 76, 4], [12, 69, 4]],
-  [[0, 77, 2], [2, 81, 2], [4, 84, 2], [6, 81, 2], [8, 79, 2], [10, 77, 2], [12, 76, 2], [14, 74, 2]],
-  [[0, 74, 2], [2, 76, 2], [4, 79, 4], [8, 71, 2], [10, 74, 2], [12, 79, 4]],
-];
-const MEL_CHORUS = [
-  [[0, 84, 3], [3, 81, 1], [4, 84, 2], [6, 86, 2], [8, 84, 2], [10, 81, 2], [12, 77, 4]],
-  [[0, 83, 3], [3, 79, 1], [4, 83, 2], [6, 86, 2], [8, 83, 2], [10, 79, 2], [12, 74, 4]],
-  [[0, 76, 2], [2, 79, 2], [4, 83, 2], [6, 88, 2], [8, 86, 2], [10, 83, 2], [12, 79, 2], [14, 83, 2]],
-  [[0, 81, 4], [4, 84, 2], [6, 83, 2], [8, 81, 2], [10, 79, 2], [12, 81, 4]],
-];
-// Ordre des 16 mesures de la boucle : couplet ×2, refrain ×2
-const SONG = [...VERSE.map((c, i) => [c, MEL_VERSE[i]]), ...VERSE.map((c, i) => [c, MEL_VERSE[i]]), ...CHORUS.map((c, i) => [c, MEL_CHORUS[i]]), ...CHORUS.map((c, i) => [c, MEL_CHORUS[i]])];
+const PART_A = ['Am', 'F', 'Dm', 'E'], PART_B = ['Am', 'G', 'F', 'E'];
+const SONG = [...PART_A, ...PART_A, ...PART_B, ...PART_B];
+
+// Rythme de basse sur 16 pas : 0 = silence, 1 = fondamentale, 2 = octave, 3 = quinte
+const BASS = [1, 0, 1, 2, 1, 0, 1, 3, 1, 0, 1, 2, 1, 1, 2, 3];
+// Relances de grosse caisse en plus des 4 temps (partie B plus chargée)
+const KICK_A = new Set([0, 4, 8, 12, 14]);
+const KICK_B = new Set([0, 4, 7, 8, 10, 12, 14]);
 
 export class Music {
   constructor(sound) {
     this.sound = sound; this.out = null; this.timer = null; this.step = 0; this.next = 0;
-    this.lead = false;      // mélodie active (pendant la course)
+    this.lead = false;      // arpège actif (pendant la course)
     try { this.off = localStorage.getItem(KEY) === '1'; } catch (e) { this.off = false; }
     // Pause quand l'appli passe en arrière-plan
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.stop(); else this.start(); });
@@ -46,17 +39,27 @@ export class Music {
     if (off) this.stop(); else this.start();
   }
   setLead(on) { this.lead = on; }
+  // Crée les bus de mixage (une seule fois)
+  build(ctx, dest) {
+    this.out = ctx.createGain(); this.out.gain.value = 0.0001;
+    // Compresseur général : colle le mix et donne du punch
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -14; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.12;
+    this.out.connect(comp).connect(dest);
+    // Bus basse : son gain baisse à chaque coup de grosse caisse (effet "pompe")
+    this.bassBus = ctx.createGain(); this.bassBus.gain.value = 1; this.bassBus.connect(this.out);
+    // Saturation douce pour la basse médium
+    this.shaper = ctx.createWaveShaper();
+    const c = new Float32Array(1024); for (let i = 0; i < 1024; i++) { const x = i / 512 - 1; c[i] = Math.tanh(x * 3.2) / Math.tanh(3.2); }
+    this.shaper.curve = c; this.shaper.connect(this.bassBus);
+    this.noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.5), ctx.sampleRate);
+    const d = this.noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
   start() {
     const ctx = this.sound.ctx;
     if (this.off || !ctx || this.timer || document.hidden) return;
-    if (!this.out) {
-      // Bus musique : volume modéré et léger filtrage, branché sur le volume général (coupé avec le son)
-      this.out = ctx.createGain(); this.out.gain.value = 0.0001;
-      this.noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.3), ctx.sampleRate);
-      const d = this.noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-      this.out.connect(this.sound.master);
-    }
-    this.out.gain.setTargetAtTime(0.28, ctx.currentTime, 0.4);   // fondu d'entrée
+    if (!this.out) this.build(ctx, this.sound.master);
+    this.out.gain.setTargetAtTime(0.3, ctx.currentTime, 0.4);   // fondu d'entrée
     this.next = ctx.currentTime + 0.08;
     this.timer = setInterval(() => this.schedule(), 25);
   }
@@ -72,62 +75,80 @@ export class Music {
     while (this.next < ctx.currentTime + 0.12) { this.playStep(this.step, this.next); this.step = (this.step + 1) % (SONG.length * 16); this.next += STEP; }
   }
   playStep(i, t) {
-    const bar = Math.floor(i / 16), s = i % 16, [chordName, melody] = SONG[bar], ch = CHORDS[chordName];
-    const chorus = bar >= 8;
-    // Batterie : grosse caisse sur les temps (plus dense au refrain), caisse claire sur 2 et 4, charleston en croches
-    if (s % 4 === 0 || (chorus && s === 10)) this.kick(t);
-    if (s === 4 || s === 12) this.snare(t);
-    if (s % 2 === 0) this.hat(t, s % 4 === 2 ? 0.07 : 0.035);
-    if (chorus && s % 2 === 1) this.hat(t, 0.02);
-    if (bar % 4 === 3 && s >= 12) this.snare(t, 0.12);       // roulement de fin de phrase
-    // Basse : croches rebondissantes fondamentale / octave
-    if (s % 2 === 0) this.bass(mtof(ch.bass + (s % 4 === 2 ? 12 : 0)), t, STEP * 1.8);
-    // Accords en contretemps (sur le "et" de chaque temps)
-    if (s % 4 === 2) for (const n of ch.notes) this.stab(mtof(n), t, STEP * 1.4);
-    // Mélodie
-    if (this.lead) for (const [st, n, len] of melody) if (st === s) this.leadNote(mtof(n), t, STEP * len * 0.92);
+    const bar = Math.floor(i / 16), s = i % 16, ch = CHORDS[SONG[bar]];
+    const partB = bar >= 8, lastBar = bar % 4 === 3;
+    // Grosse caisse : 4 temps + relances ; la dernière mesure de chaque phrase laisse place au roulement
+    const kicks = partB ? KICK_B : KICK_A;
+    if (kicks.has(s) && !(lastBar && s >= 12)) this.kick(t, s % 4 === 0 ? 1 : 0.75);
+    // Caisse claire + clap sur 2 et 4, notes fantômes, roulement en doubles croches en fin de phrase
+    if (s === 4 || s === 12) { this.snare(t, 0.5); this.clap(t); }
+    else if (s === 7 || s === 15 || (partB && s === 10)) this.snare(t, 0.12);
+    if (lastBar && s >= 12) this.snare(t, 0.18 + (s - 12) * 0.08);
+    if (lastBar && bar === SONG.length - 1 && s === 15) this.crashFx(t + STEP);
+    // Charleston en doubles croches, ouvert sur les contretemps
+    if (s % 4 === 2) this.hat(t, 0.06, 0.14); else this.hat(t, s % 2 ? 0.018 : 0.03, 0.035);
+    // Basse en doubles croches
+    const b = BASS[s];
+    if (b) this.bass(mtof(ch.bass + (b === 2 ? 12 : b === 3 ? 7 : 0)), t, STEP * (BASS[(s + 1) % 16] ? 0.9 : 1.8), b === 1 && s % 4 === 0);
+    // Arpège sombre pendant la course : doubles croches montantes, filtre qui s'ouvre au fil de la phrase
+    if (this.lead && s % 2 === 0) this.arp(mtof(ch.arp[(s / 2) % 4] + 12), t, STEP * 1.6, (bar % 4) / 3);
   }
 
   // ---------- instruments ----------
   env(g, t, a, peak, dur) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); }
-  kick(t) {
+  // Grosse caisse : corps grave qui descend + attaque claquante, et "pompe" sur la basse
+  kick(t, vol) {
     const ctx = this.sound.ctx, o = ctx.createOscillator(), g = ctx.createGain();
-    o.type = 'sine'; o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12);
-    this.env(g, t, 0.004, 0.75, 0.22); o.connect(g).connect(this.out); o.start(t); o.stop(t + 0.25);
+    o.type = 'sine'; o.frequency.setValueAtTime(190, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.09); o.frequency.exponentialRampToValueAtTime(38, t + 0.3);
+    this.env(g, t, 0.003, 1.1 * vol, 0.34); o.connect(g).connect(this.out); o.start(t); o.stop(t + 0.36);
+    const n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), ng = ctx.createGain();
+    n.buffer = this.noiseBuf; f.type = 'highpass'; f.frequency.value = 2500;
+    this.env(ng, t, 0.001, 0.25 * vol, 0.012); n.connect(f).connect(ng).connect(this.out); n.start(t); n.stop(t + 0.02);
+    const bg = this.bassBus.gain; bg.cancelScheduledValues(t); bg.setValueAtTime(0.25, t); bg.linearRampToValueAtTime(1, t + 0.16);
   }
-  snare(t, vol = 0.32) {
+  snare(t, vol) {
     const ctx = this.sound.ctx, n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-    n.buffer = this.noiseBuf; f.type = 'bandpass'; f.frequency.value = 1900; f.Q.value = 0.8;
-    this.env(g, t, 0.002, vol, 0.16); n.connect(f).connect(g).connect(this.out); n.start(t); n.stop(t + 0.18);
-    const o = ctx.createOscillator(), og = ctx.createGain(); o.type = 'triangle'; o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(140, t + 0.08);
-    this.env(og, t, 0.002, vol * 0.6, 0.09); o.connect(og).connect(this.out); o.start(t); o.stop(t + 0.1);
+    n.buffer = this.noiseBuf; f.type = 'bandpass'; f.frequency.value = 2200; f.Q.value = 0.7;
+    this.env(g, t, 0.002, vol, 0.2); n.connect(f).connect(g).connect(this.out); n.start(t, Math.random() * 0.2); n.stop(t + 0.22);
+    const o = ctx.createOscillator(), og = ctx.createGain(); o.type = 'triangle'; o.frequency.setValueAtTime(240, t); o.frequency.exponentialRampToValueAtTime(160, t + 0.07);
+    this.env(og, t, 0.002, vol * 0.9, 0.1); o.connect(og).connect(this.out); o.start(t); o.stop(t + 0.12);
   }
-  hat(t, vol) {
+  // Clap : trois petites rafales de bruit rapprochées
+  clap(t) {
+    const ctx = this.sound.ctx;
+    for (const [dt, v, len] of [[0, 0.25, 0.02], [0.011, 0.22, 0.02], [0.022, 0.3, 0.14]]) {
+      const n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      n.buffer = this.noiseBuf; f.type = 'bandpass'; f.frequency.value = 1300; f.Q.value = 1.2;
+      this.env(g, t + dt, 0.001, v, len); n.connect(f).connect(g).connect(this.out); n.start(t + dt, Math.random() * 0.3); n.stop(t + dt + len + 0.02);
+    }
+  }
+  hat(t, vol, dur) {
     const ctx = this.sound.ctx, n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-    n.buffer = this.noiseBuf; f.type = 'highpass'; f.frequency.value = 7500;
-    this.env(g, t, 0.001, vol, 0.045); n.connect(f).connect(g).connect(this.out); n.start(t, Math.random() * 0.2); n.stop(t + 0.05);
+    n.buffer = this.noiseBuf; f.type = 'highpass'; f.frequency.value = 8000;
+    this.env(g, t, 0.001, vol, dur); n.connect(f).connect(g).connect(this.out); n.start(t, Math.random() * 0.4); n.stop(t + dur + 0.01);
   }
-  bass(freq, t, dur) {
+  crashFx(t) {
+    const ctx = this.sound.ctx, n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    n.buffer = this.noiseBuf; n.loop = true; f.type = 'highpass'; f.frequency.value = 5000;
+    this.env(g, t, 0.003, 0.12, 1.2); n.connect(f).connect(g).connect(this.out); n.start(t); n.stop(t + 1.25);
+  }
+  // Basse : sub sinus propre + dent de scie saturée et filtrée ; les notes sur les temps sont un peu plus longues
+  bass(freq, t, dur, accent) {
+    const ctx = this.sound.ctx;
+    const sub = ctx.createOscillator(), sg = ctx.createGain();
+    sub.type = 'sine'; sub.frequency.value = freq < 50 ? freq * 2 : freq;
+    this.env(sg, t, 0.004, accent ? 0.55 : 0.45, dur); sub.connect(sg).connect(this.bassBus); sub.start(t); sub.stop(t + dur + 0.02);
+    const o = ctx.createOscillator(), o2 = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    o.type = 'sawtooth'; o.frequency.value = freq * 2; o2.type = 'square'; o2.frequency.value = freq * 2; o2.detune.value = -8;
+    f.type = 'lowpass'; f.Q.value = 6; f.frequency.setValueAtTime(accent ? 1400 : 1000, t); f.frequency.exponentialRampToValueAtTime(220, t + dur);
+    this.env(g, t, 0.004, 0.32, dur); o.connect(f); o2.connect(f); f.connect(g).connect(this.shaper);
+    for (const x of [o, o2]) { x.start(t); x.stop(t + dur + 0.02); }
+  }
+  // Arpège : son pincé sombre, filtre qui s'ouvre progressivement (open = 0..1)
+  arp(freq, t, dur, open) {
     const ctx = this.sound.ctx, o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
     o.type = 'sawtooth'; o.frequency.value = freq;
-    f.type = 'lowpass'; f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(260, t + dur); f.Q.value = 4;
-    this.env(g, t, 0.005, 0.28, dur); o.connect(f).connect(g).connect(this.out); o.start(t); o.stop(t + dur + 0.02);
-  }
-  stab(freq, t, dur) {
-    const ctx = this.sound.ctx, o = ctx.createOscillator(), g = ctx.createGain();
-    o.type = 'square'; o.frequency.value = freq;
-    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2200;
-    this.env(g, t, 0.004, 0.045, dur); o.connect(f).connect(g).connect(this.out); o.start(t); o.stop(t + dur + 0.02);
-  }
-  leadNote(freq, t, dur) {
-    const ctx = this.sound.ctx, o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter();
-    o.type = 'square'; o.frequency.value = freq; o2.type = 'triangle'; o2.frequency.value = freq * 2; o2.detune.value = 6;
-    // vibrato léger sur les notes longues
-    const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 6; lg.gain.value = dur > STEP * 3 ? freq * 0.012 : 0;
-    lfo.connect(lg); lg.connect(o.frequency); lg.connect(o2.frequency);
-    f.type = 'lowpass'; f.frequency.value = 3200;
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.085, t + 0.01); g.gain.setValueAtTime(0.07, t + dur * 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(f); o2.connect(f); f.connect(g).connect(this.out);
-    for (const x of [o, o2, lfo]) { x.start(t); x.stop(t + dur + 0.03); }
+    f.type = 'lowpass'; f.Q.value = 5; f.frequency.setValueAtTime(700 + open * 1600, t); f.frequency.exponentialRampToValueAtTime(300, t + dur);
+    this.env(g, t, 0.003, 0.06, dur); o.connect(f).connect(g).connect(this.out); o.start(t); o.stop(t + dur + 0.02);
   }
 }

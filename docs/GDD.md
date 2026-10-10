@@ -123,7 +123,7 @@ Le booster s'active à tout moment pendant la course avec un bouton dédié. Il 
 | Gemmes | Booster | 1 par heure, sur la piste, 2 à l'arrivée |
 | Vies | 1 vie = 1 lancement | 25 au départ et au maximum, recharge de 1 toutes les 12 min |
 
-**Musique de fond** : boucle pop-chiptune originale à 132 BPM, synthétisée en direct (aucun fichier audio) : couplet Do – Lam – Fa – Sol puis refrain Fa – Sol – Mim – Lam, joués A A B B (environ 30 s). Batterie, basse rebondissante et accords en contretemps tournent en permanence ; la mélodie entre en jeu pendant la course. Fondu d'entrée, pause quand l'appli passe en arrière-plan, bouton « Musique » séparé du bouton « Son » dans les options.
+**Musique de fond** : boucle électro énergique originale à 128 BPM en La mineur, synthétisée en direct (aucun fichier audio) : partie A Lam – Fa – Rém – Mi puis partie B Lam – Sol – Fa – Mi, jouées A A B B (environ 30 s). Grosse caisse lourde à chaque temps avec relances, caisse claire et clap sur 2 et 4 avec notes fantômes et roulements de fin de phrase, charleston en doubles croches, basse lourde (sub + basse saturée) en doubles croches qui « pompe » au rythme de la grosse caisse, compresseur sur l'ensemble. Pendant la course, un arpège sombre s'ajoute. Fondu d'entrée, pause quand l'appli passe en arrière-plan, bouton « Musique » séparé du bouton « Son » dans les options.
 
 **Pièces sur la piste** : bronze = 1, argent = 3, or = 5, ajoutées au gain total en fin de course. À chaque ramassage, la valeur s'affiche (+1, +3, +5) avec un son propre à chaque pièce.
 

@@ -1,10 +1,10 @@
-Une musique de fond !
+Nouvelle musique de fond, plus percutante.
 
 ## Installer / mettre à jour
-Télécharge `HillKicker-v0.5.0.apk` ci-dessous depuis ton téléphone et ouvre-le : il s'installe par-dessus la version précédente, ta progression est conservée.
+Télécharge `HillKicker-v0.5.1.apk` ci-dessous depuis ton téléphone et ouvre-le : il s'installe par-dessus la version précédente, ta progression est conservée.
 
 ## Nouveautés
-- **Musique de fond** fun et rythmée (pop-chiptune originale, 132 BPM), composée pour le jeu et jouée en direct.
-- À l'accueil, seul l'accompagnement tourne (batterie, basse, accords) ; pendant la course, la mélodie entre en jeu.
-- Nouveau bouton **Musique** dans les options, séparé du bouton Son.
-- La musique se met en pause quand l'appli passe en arrière-plan.
+- **Musique refaite** : électro énergique en La mineur à 128 BPM, moins « dessin animé ».
+- Plus de grosse caisse (relances en plus des 4 temps), caisse claire doublée d'un clap, notes fantômes et roulements en fin de phrase.
+- Basse beaucoup plus présente : sub grave + basse saturée en doubles croches, qui « pompe » avec la grosse caisse.
+- Pendant la course, un arpège sombre remplace l'ancienne mélodie.

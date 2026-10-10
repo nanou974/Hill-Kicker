@@ -16,14 +16,13 @@ const page = await browser.newPage();
 await page.goto('http://localhost:8770/tools/render/index.html?s=none');
 const b64 = await page.evaluate(async () => {
   const { Music } = await import('/src/game/music.js');
-  const STEP = 60 / 132 / 4, steps = 16 * 16 + 4, sr = 44100;
+  const STEP = 60 / 128 / 4, steps = 16 * 16 + 4, sr = 44100;
   const ctx = new OfflineAudioContext(2, Math.ceil((steps * STEP + 1.5) * sr), sr);
   const m = new Music({ ctx, master: ctx.destination });
-  m.out = ctx.createGain(); m.out.gain.value = 0.9; m.out.connect(ctx.destination);
-  m.noiseBuf = ctx.createBuffer(1, Math.floor(sr * 0.3), sr); const d = m.noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  m.build(ctx, ctx.destination); m.out.gain.value = 0.9;
   m.lead = true;
   for (let i = 0; i < 16 * 16; i++) m.playStep(i, 0.05 + i * STEP);
-  m.kick(0.05 + 256 * STEP);
+  m.kick(0.05 + 256 * STEP, 1);
   const buf = await ctx.startRendering();
   // Encodage WAV 16 bits stéréo
   const n = buf.length, L = buf.getChannelData(0), R = buf.getChannelData(1), ab = new ArrayBuffer(44 + n * 4), v = new DataView(ab);
