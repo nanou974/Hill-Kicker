@@ -28,7 +28,7 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - uses: android-actions/setup-android@v3
+      # Le SDK Android est déjà installé sur les machines ubuntu-latest de GitHub
 
       - name: Préparer le jeu (www/) et synchroniser Capacitor
         run: |
