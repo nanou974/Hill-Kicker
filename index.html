@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#5EB4EC">
+<title>Hill Kicker</title>
+<link rel="icon" href="assets/icon/hill-kicker-icon-1024.jpg">
+<link rel="apple-touch-icon" href="assets/icon/hill-kicker-icon-1024.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="src/game/style.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"}}</script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-coin" viewBox="0 0 34 34"><circle cx="17" cy="17" r="15" fill="#E8A100"/><circle cx="17" cy="16" r="14" fill="#FFC21A"/><circle cx="17" cy="16" r="10" fill="#FFD84D" stroke="#E8A100" stroke-width="1.5"/><path d="M17 9 L19 14 L24 14.3 L20 17.4 L21.4 22.5 L17 19.6 L12.6 22.5 L14 17.4 L10 14.3 L15 14 Z" fill="#E8A100"/></symbol>
+  <symbol id="i-blue" viewBox="0 0 34 34"><circle cx="17" cy="17" r="15" fill="#1450A8"/><circle cx="17" cy="16" r="14" fill="#2F86F0"/><circle cx="17" cy="16" r="10" fill="#5FA8FF" stroke="#1450A8" stroke-width="1.5"/><path d="M17 9 L19 14 L24 14.3 L20 17.4 L21.4 22.5 L17 19.6 L12.6 22.5 L14 17.4 L10 14.3 L15 14 Z" fill="#1450A8"/></symbol>
+  <symbol id="i-gem" viewBox="0 0 32 34"><path d="M16 2 L29 9.5 L29 24.5 L16 32 L3 24.5 L3 9.5 Z" fill="#D63384"/><path d="M16 2 L29 9.5 L16 17 L3 9.5 Z" fill="#FF8CC6"/><path d="M16 17 L29 9.5 L29 24.5 L16 32 Z" fill="#B0136A"/></symbol>
+  <symbol id="i-fuel" viewBox="0 0 30 34"><path d="M6 8 L18 8 L25 15 L25 31 Q25 33 23 33 L7 33 Q5 33 5 31 L5 9 Z" fill="#E5383B" stroke="#FFFFFF" stroke-width="2"/><rect x="8" y="3" width="8" height="5" rx="1" fill="#FFFFFF"/><path d="M10 17 L20 27 M20 17 L10 27" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-flame" viewBox="0 0 40 40"><path d="M20 3 C 26 12 31 17 31 25 A 11 11 0 0 1 9 25 C 9 19 13 16 15 11 C 17 16 19 17 20 18 C 21 13 20 8 20 3 Z" fill="currentColor"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 34 34"><path d="M13 30 L13 12 Q13 9 15.5 9 Q18 9 18 12 L18 18 L18 15 Q18 13 20.2 13 Q22.4 13 22.4 15 L22.4 18 Q22.4 16 24.4 16 Q26.4 16 26.4 18.4 L26.4 24 Q26.4 30 21 30 Z" fill="#FFFFFF"/><path d="M13 22 L10 19 Q8.4 17.6 7.2 19 Q6.2 20.4 7.6 21.8 L13 27" fill="#FFFFFF"/></symbol>
+</svg>
+
+<main id="app">
+  <div id="gl"></div>
+
+  <!-- Barre du haut : vies, monnaies, gemmes -->
+  <header id="hud-top" class="hud-top">
+    <div class="stack"><div class="pill"><svg class="ico fuel"><use href="#i-fuel"/></svg><span id="v-lives">25</span></div><span class="timer" id="v-lifetimer" hidden>12:00</span></div>
+    <div class="pill"><svg class="ico"><use href="#i-coin"/></svg><span id="v-yellow">0</span></div>
+    <div class="pill"><svg class="ico"><use href="#i-blue"/></svg><span id="v-blue">0</span></div>
+    <div class="pill"><svg class="ico"><use href="#i-gem"/></svg><span id="v-gems">0</span></div>
+  </header>
+
+  <!-- Accueil / améliorations -->
+  <section id="s-home" class="screen">
+    <h1 class="title" id="v-level">NIVEAU 1</h1>
+    <button type="button" class="round gear" id="b-menu" aria-label="Options"><svg viewBox="0 0 26 26" width="24" height="24" aria-hidden="true"><path d="M11 1 L15 1 L15.6 4.4 L18.4 5.6 L21.2 3.6 L24 6.4 L22 9.2 L23.2 12 L26 12.6 L26 13.4 L23.2 14 L22 16.8 L24 19.6 L21.2 22.4 L18.4 20.4 L15.6 21.6 L15 25 L11 25 L10.4 21.6 L7.6 20.4 L4.8 22.4 L2 19.6 L4 16.8 L2.8 14 L0 13.4 L0 12.6 L2.8 12 L4 9.2 L2 6.4 L4.8 3.6 L7.6 5.6 L10.4 4.4 Z" fill="#fff"/><circle cx="13" cy="13" r="4.5" fill="#1B2340"/></svg></button>
+    <div class="side left">
+      <button type="button" class="tile" id="b-garage"><span class="tile-img"><img id="v-carthumb" src="assets/renders/vehicules/t_citadine.png" alt=""></span><span class="tile-label">GARAGE</span></button>
+      <button type="button" class="tile" id="b-chest"><span class="tile-img chest"><svg viewBox="0 0 48 44" width="46" height="42" aria-hidden="true"><path d="M4 18 Q4 4 24 4 Q44 4 44 18 Z" fill="#2F86F0"/><rect x="4" y="18" width="40" height="22" rx="3" fill="#1D63C9"/><rect x="4" y="16" width="40" height="5" fill="#FFC21A"/><rect x="20" y="16" width="8" height="12" rx="2" fill="#FFC21A"/></svg></span><span class="timer" id="v-chest">10:00</span></button>
+    </div>
+    <div class="booster-card" id="booster-card">
+      <span class="badge" id="v-boostlvl">0</span>
+      <span class="b-img"><svg width="40" height="40" style="color:#E0338A"><use href="#i-flame"/></svg></span>
+      <span class="b-txt" id="v-boosttxt">BOOSTER</span>
+      <button type="button" class="btn pink" id="b-booster">AMÉLIORER<br><span class="cost">1 <svg class="ico s"><use href="#i-gem"/></svg></span></button>
+    </div>
+    <button type="button" class="tap-to-play" id="b-play">TOUCHE POUR LANCER</button>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <!-- Lanceur -->
+  <section id="s-launch" class="screen" hidden>
+    <div class="gauge-wrap"><span class="pct" id="v-pct">0%</span><div class="gauge" id="gauge"><div class="fill" id="gauge-fill"></div><div class="mark"></div></div><span class="chip" id="v-gaugechip">min 50%</span></div>
+    <div class="launch-bottom">
+      <span class="hint" id="v-launchhint">MAINTIENS, PUIS LÂCHE ENTRE 50 ET 100 %</span>
+      <button type="button" class="hold" id="b-hold"><svg width="34" height="34"><use href="#i-hand"/></svg>MAINTIENS</button>
+    </div>
+    <button type="button" class="round back" id="b-launchback" aria-label="Retour"><svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><path d="M11 3 L5 9 L11 15" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </section>
+
+  <!-- Course -->
+  <section id="s-run" class="screen" hidden>
+    <div class="run-top"><span class="dist" id="v-dist">0m</span>
+      <div class="mini"><span class="pill sm"><svg class="ico s"><use href="#i-coin"/></svg><span id="v-runcoins">+0</span></span><span class="pill sm"><svg class="ico s"><use href="#i-gem"/></svg><span id="v-rungems">+0</span></span></div></div>
+    <div class="progress"><span class="flag"></span><div class="track"><div class="fill" id="prog-fill"></div><div class="dot" id="prog-dot"></div><div class="best" id="prog-best"><i></i>BEST</div></div><span class="ppct" id="v-prog">0%</span></div>
+    <div class="speedo"><svg viewBox="0 0 132 132" width="132" height="132" aria-hidden="true"><circle cx="66" cy="66" r="56" fill="rgba(60,72,104,0.45)"/><path d="M 26.4 105.6 A 56 56 0 1 1 105.6 105.6" fill="none" stroke="rgba(27,35,64,0.55)" stroke-width="12" stroke-linecap="round"/><path id="speed-arc" d="M 26.4 105.6 A 56 56 0 1 1 105.6 105.6" fill="none" stroke="#3CE0F0" stroke-width="12" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100"/></svg>
+      <span class="kmh" id="v-kmh">0</span><span class="unit">km/h</span>
+      <button type="button" class="boost" id="b-boost" aria-label="Activer le booster"><svg width="30" height="30" style="color:#fff"><use href="#i-flame"/></svg></button></div>
+    <div class="trick" id="trick" hidden></div>
+  </section>
+
+  <!-- Joystick flottant -->
+  <div class="joy-base" id="joy-base" hidden></div>
+  <div class="joy-knob" id="joy-knob" hidden></div>
+
+  <!-- Panneaux -->
+  <div class="panel" id="p-results" hidden>
+    <h2>Tu as gagné :</h2>
+    <p class="small" id="v-r-calc">0 m × ×1</p>
+    <p class="big"><span id="v-r-dist">0</span><svg class="ico m"><use href="#i-coin"/></svg></p>
+    <p class="mid">Pièces : <span id="v-r-coins">+0</span><svg class="ico m"><use href="#i-coin"/></svg></p>
+    <p class="mid row"><span>+<span id="v-r-blue">500</span><svg class="ico m"><use href="#i-blue"/></svg></span><span>+<span id="v-r-gems">0</span><svg class="ico m"><use href="#i-gem"/></svg></span></p>
+    <p class="record" id="v-r-record" hidden>NOUVEAU RECORD !</p>
+    <button type="button" class="btn blue wide" id="b-continue">CONTINUER</button>
+  </div>
+  <div class="panel" id="p-faux" hidden>
+    <h2 class="red">FAUX DÉPART !</h2>
+    <p class="mid" id="v-faux">Lâché à 32 %</p>
+    <p class="small">Il faut au moins 50 % pour partir. Aucune vie utilisée.</p>
+    <button type="button" class="btn blue wide" id="b-retry">RÉESSAYER</button>
+  </div>
+  <div class="panel" id="p-level" hidden>
+    <h2>NIVEAU TERMINÉ !</h2>
+    <p class="mid">+2 <svg class="ico m"><use href="#i-gem"/></svg></p>
+    <p class="small">Tes améliorations et ta monnaie jaune repartent de zéro pour le niveau suivant.</p>
+    <button type="button" class="btn blue wide" id="b-nextlevel">NIVEAU SUIVANT</button>
+  </div>
+  <div class="panel" id="p-nolives" hidden>
+    <h2>PLUS DE CARBURANT</h2>
+    <p class="mid">Prochaine vie dans <span id="v-nolives">12:00</span></p>
+    <button type="button" class="btn blue wide" id="b-nolives">OK</button>
+  </div>
+  <div class="panel" id="p-chest" hidden>
+    <h2>COFFRE OUVERT !</h2>
+    <p class="mid row"><span>+<span id="v-c-yellow">0</span><svg class="ico m"><use href="#i-coin"/></svg></span><span>+<span id="v-c-blue">250</span><svg class="ico m"><use href="#i-blue"/></svg></span></p>
+    <button type="button" class="btn blue wide" id="b-chestok">SUPER</button>
+  </div>
+  <div class="panel" id="p-menu" hidden>
+    <h2>OPTIONS</h2>
+    <p class="small">Sur ordinateur : flèches pour diriger, flèche haut pour un flip, espace pour le booster.</p>
+    <button type="button" class="btn red wide" id="b-reset">EFFACER LA PARTIE</button>
+    <button type="button" class="btn blue wide" id="b-menuclose">FERMER</button>
+  </div>
+
+  <!-- Garage -->
+  <section id="s-garage" class="garage" hidden>
+    <div class="g-head"><span class="pill"><svg class="ico"><use href="#i-blue"/></svg><span id="v-gblue">0</span></span><button type="button" class="round close" id="b-garageclose" aria-label="Fermer"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M4 4 L16 16 M16 4 L4 16" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg></button></div>
+    <h2 id="v-gname">Citadine</h2>
+    <img class="g-hero" id="v-ghero" src="assets/renders/vehicules/t_citadine.png" alt="">
+    <button type="button" class="btn blue g-act" id="b-gact">SÉLECTIONNÉE</button>
+    <div class="g-grid" id="g-grid"></div>
+  </section>
+</main>
+<script type="module" src="src/game/main.js"></script>
+</body>
+</html>
