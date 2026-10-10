@@ -1,12 +1,12 @@
 # Compile l'APK Android de Hill Kicker.
 # - À chaque push sur main : APK disponible dans l'onglet Actions (artefact).
-# - À chaque tag vX.Y.Z : une release GitHub est créée avec l'APK à télécharger.
+# - Si la version de src/game/version.js n'a pas encore de release, une release vX.Y.Z
+#   est créée avec l'APK à télécharger. Pour publier : il suffit d'augmenter VERSION.
 name: APK Android
 
 on:
   push:
     branches: [main]
-    tags: ['v*']
   workflow_dispatch:
 
 permissions:
@@ -49,17 +49,21 @@ jobs:
           V=$(sed -n "s/.*VERSION = '\(.*\)'.*/\1/p" src/game/version.js)
           cp android/app/build/outputs/apk/release/app-release.apk "HillKicker-v$V.apk"
           echo "APK=HillKicker-v$V.apk" >> "$GITHUB_ENV"
+          echo "TAG=v$V" >> "$GITHUB_ENV"
 
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APK }}
           path: ${{ env.APK }}
 
-      - name: Publier la release
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Publier la release (nouvelle version uniquement)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" "$APK" \
-            --title "Hill Kicker $GITHUB_REF_NAME" \
-            --notes-file docs/release-notes.md
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "La release $TAG existe déjà : rien à publier."
+          else
+            gh release create "$TAG" "$APK" --target "$GITHUB_SHA" \
+              --title "Hill Kicker $TAG" \
+              --notes-file docs/release-notes.md
+          fi

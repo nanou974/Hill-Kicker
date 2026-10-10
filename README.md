@@ -36,9 +36,9 @@ Pour jouer en ligne sans rien installer, active GitHub Pages sur la branche `mai
 L'APK est compilé automatiquement par GitHub Actions (`.github/workflows/android.yml`) :
 
 - chaque push sur `main` produit un APK dans l'onglet **Actions** ;
-- chaque tag `vX.Y.Z` crée une **release** avec l'APK à télécharger : https://github.com/nanou974/Hill-Kicker/releases
+- chaque nouvelle version crée une **release** avec l'APK à télécharger : https://github.com/nanou974/Hill-Kicker/releases
 
-Pour publier une nouvelle version : changer `VERSION` dans `src/game/version.js` (et `package.json`), puis `git tag vX.Y.Z && git push origin vX.Y.Z`.
+Pour publier une nouvelle version : augmenter `VERSION` dans `src/game/version.js` (et `package.json`), mettre à jour `docs/release-notes.md`, puis pousser sur `main`.
 
 L'APK est signé avec une clé de test présente dans le dépôt (`android/app/hillkicker-test.keystore`). Pour le Play Store, il faudra une clé privée fournie par les secrets GitHub (`KEYSTORE_FILE`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`).
 
