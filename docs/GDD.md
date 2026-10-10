@@ -123,6 +123,8 @@ Le booster s'active à tout moment pendant la course avec un bouton dédié. Il 
 | Gemmes | Booster | 1 par heure, sur la piste, 2 à l'arrivée |
 | Vies | 1 vie = 1 lancement | 25 au départ et au maximum, recharge de 1 toutes les 12 min |
 
+**Musique de fond** : boucle pop-chiptune originale à 132 BPM, synthétisée en direct (aucun fichier audio) : couplet Do – Lam – Fa – Sol puis refrain Fa – Sol – Mim – Lam, joués A A B B (environ 30 s). Batterie, basse rebondissante et accords en contretemps tournent en permanence ; la mélodie entre en jeu pendant la course. Fondu d'entrée, pause quand l'appli passe en arrière-plan, bouton « Musique » séparé du bouton « Son » dans les options.
+
 **Pièces sur la piste** : bronze = 1, argent = 3, or = 5, ajoutées au gain total en fin de course. À chaque ramassage, la valeur s'affiche (+1, +3, +5) avec un son propre à chaque pièce.
 
 **Coffre** : disponible toutes les 10 min sur l'écran d'amélioration. Il contient de la monnaie jaune et 250 en monnaie bleue. Part jaune = 2 × le coût de la prochaine amélioration la moins chère, plafonnée au coût du prochain palier du multiplicateur. Premier coffre : 200 fixe (seule exception au plafond), disponible 10 min après le début du jeu.

@@ -8,6 +8,7 @@ import { createCar, step, tuning, launchSpeed } from './physics.js';
 import { Economy, UPGRADES, VEHICLE_PRICES } from './economy.js';
 import { Joystick } from './input.js';
 import { Sound } from './audio.js';
+import { Music } from './music.js';
 import { VERSION } from './version.js';
 
 const $ = (id) => document.getElementById(id);
@@ -17,6 +18,9 @@ const KMH = 3.6 * 0.55;
 $('v-version').textContent = `v${VERSION}`;
 const eco = new Economy();
 const sfx = new Sound();
+const music = new Music(sfx);
+// La musique démarre au premier geste du joueur (après l'activation du son)
+addEventListener('pointerdown', () => music.start()); addEventListener('keydown', () => music.start());
 const fmt = (n) => Math.round(n).toLocaleString('fr-FR').replace(/ /g, ' ');
 const mmss = (ms) => { const s = Math.ceil(ms / 1000); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
 const ICONS = { pneus: 'i_pneus', susp: 'i_susp', lanceur: 'i_lanceur', mult: 'i_multi' };
@@ -93,6 +97,7 @@ function setScreen(s) {
   show('hud-top', s === 'home' || s === 'launch' || s === 'end');
   joy.enabled = s === 'run'; if (s !== 'run') joy.reset();
   sfx.engineStart(); sfx.engineSet(s === 'launch' ? 0.05 : 0, s === 'launch' || s === 'run');
+  music.setLead(s === 'run'); // la mélodie entre en jeu pendant la course
   $('app').classList.remove('shake');
 }
 function refreshTop() {
@@ -137,6 +142,9 @@ $('b-chestok').addEventListener('click', () => show('p-chest', false));
 $('b-booster').addEventListener('click', () => { if (eco.buyBooster()) { sfx.buy(); refreshHome(); } });
 function refreshSoundBtn() { $('b-sound').textContent = sfx.muted ? 'SON : COUPÉ' : 'SON : ACTIVÉ'; }
 $('b-sound').addEventListener('click', () => { sfx.setMuted(!sfx.muted); refreshSoundBtn(); });
+function refreshMusicBtn() { $('b-music').textContent = music.off ? 'MUSIQUE : COUPÉE' : 'MUSIQUE : ACTIVÉE'; }
+$('b-music').addEventListener('click', () => { music.setOff(!music.off); refreshMusicBtn(); });
+refreshMusicBtn();
 refreshSoundBtn();
 $('b-menu').addEventListener('click', () => show('p-menu', true));
 $('b-menuclose').addEventListener('click', () => show('p-menu', false));
