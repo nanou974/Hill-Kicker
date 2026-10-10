@@ -9,7 +9,7 @@ const TARMAC_MU = 0.55; // la voiture glisse mieux sur le goudron
 export function makeLayout(level, gemsTaken = []) {
   const r = rng(1000 + level * 77);
   const opt = { half: TRACK.half, slope: 0.148 - (Math.min(level, 20) - 1) * 0.0009 };
-  const tarmac = [], ramps = [], plates = [], coins = [], gems = [], props = [], arches = [], forks = [];
+  const tarmac = [], ramps = [], plates = [], coins = [], gems = [], props = [], arches = [], forks = [], obstacles = [];
 
   // Bifurcations : une colline infranchissable sépare la piste en deux chemins sur 150 à 200 m.
   // Un côté est le chemin des pièces (pièces d'or + rampe), l'autre le chemin rapide (goudron + plaque boost).
@@ -62,6 +62,22 @@ export function makeLayout(level, gemsTaken = []) {
   // Rien ne doit se trouver sous la colline
   const keep = (arr, pad) => { const k = arr.filter(o => o.fork || !inRidge(o.x, o.z, pad)); arr.length = 0; arr.push(...k); };
   keep(ramps, 4); keep(plates, 3); keep(coins, 0.5); keep(props, 1);
+  // Pas de rampe dans les 90 m avant une colline : la voiture serait en l'air au moment de choisir son chemin
+  { const k = ramps.filter(p => p.fork || !forks.some(f => p.z > f.z0 && p.z < f.z0 + 90)); ramps.length = 0; ramps.push(...k); }
+  // Obstacles sur la piste : rochers et statues. Les percuter arrête la voiture.
+  // Pas avant 260 m (le premier lancer doit pouvoir se dérouler sans), ni près des rampes, plaques et collines.
+  const ro = rng(9100 + level * 53);
+  for (let s = 260 + ro() * 60; s < LEVEL_LENGTH - 40; s += 70 + ro() * 90) {
+    const n = 1 + (ro() < 0.35 ? 1 : 0);
+    for (let k = 0; k < n; k++) {
+      const kind = ro() < 0.6 ? 'boulder' : 'statue';
+      const o = { x: (ro() - 0.5) * 2 * (TRACK.half - 3), z: -(s + k * 6), kind, r: kind === 'boulder' ? 1.3 : 0.95, h: kind === 'boulder' ? 1.6 : 3.9, rot: ro() * 6 };
+      if (inRidge(o.x, o.z, 4) || ramps.some(p => Math.abs(o.x - p.x) < 7 && Math.abs(o.z - p.z) < 18) || plates.some(p => Math.abs(o.x - p.x) < 6 && Math.abs(o.z - p.z) < 10)) continue;
+      o.top = heightAt(o.x, o.z, opt) + o.h; obstacles.push(o);
+    }
+  }
+  { const k = coins.filter(c => !obstacles.some(o => Math.hypot(c.x - o.x, c.z - o.z) < o.r + 1.5)); coins.length = 0; coins.push(...k); }
+  { const k = props.filter(c => !obstacles.some(o => Math.hypot(c.x - o.x, c.z - o.z) < o.r + 2.5)); props.length = 0; props.push(...k); }
   // Aucune pièce sur une rampe ni juste devant (la voiture doit pouvoir viser la rampe librement)
   const onRamp = (c) => ramps.some(p => Math.abs(c.x - p.x) < p.w / 2 + 1.2 && c.z < p.z + p.l / 2 + 4 && c.z > p.z - p.l / 2 - 1.5);
   { const k = coins.filter(c => !onRamp(c)); coins.length = 0; coins.push(...k); }
@@ -76,7 +92,7 @@ export function makeLayout(level, gemsTaken = []) {
     return 1;
   }
   return {
-    level, opt, tarmac, ramps, plates, coins, gems, props, arches, forks, ridgeHalf,
+    level, opt, tarmac, ramps, plates, coins, gems, props, arches, forks, obstacles, ridgeHalf,
     ground(x, z, baseMu) { return { h: heightAt(x, z, opt), mu: baseMu * surfaceMu(x, z) }; },
     rampAt(x, z) {
       for (const p of ramps) if (Math.abs(x - p.x) < p.w / 2 && z < p.z + p.l / 2 && z > p.z - p.l / 2) return p;
@@ -89,7 +105,15 @@ export function makeLayout(level, gemsTaken = []) {
     isTarmac(x, z) { return surfaceMu(x, z) < 1; },
     // Zone interdite (colline d'une bifurcation) : renvoie le centre et la demi-largeur à éviter
     barrier(x, z) {
-      for (const f of forks) if (z <= f.z0 && z >= f.z1) { const hw = ridgeHalf(f, z) + 1; if (hw > 1 && Math.abs(x - f.cx) < hw) return { cx: f.cx, hw }; }
+      for (const f of forks) if (z <= f.z0 && z >= f.z1) {
+        const hw = ridgeHalf(f, z) + 1;
+        if (hw > 1 && Math.abs(x - f.cx) < hw) { const t = (f.z0 - z) / (f.z0 - f.z1); return { cx: f.cx, hw, top: heightAt(x, z, opt) + f.h * Math.pow(Math.sin(Math.PI * t), 0.55) }; }
+      }
+      return null;
+    },
+    // Obstacle percuté (rocher, statue) : 0,9 m = demi-largeur de la voiture
+    obstacleAt(x, z) {
+      for (const o of obstacles) if (Math.abs(z - o.z) < 3 && Math.hypot(x - o.x, z - o.z) < o.r + 0.9) return o;
       return null;
     },
   };

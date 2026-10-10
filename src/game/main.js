@@ -52,6 +52,7 @@ let pct = 0, holding = false, maxed = false;
 let runCoins = 0, runGems = 0, boostUsed = false, trickTimer = 0;
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 let camSide = 0;  // décalage latéral de la caméra : vue de trois quarts dans les virages
+let crashShake = 0; // secousse de la caméra quand la voiture percute un obstacle
 let fovKick = 0;  // effet de vitesse (élargissement du champ de vision) quand un boost propulse la voiture
 const joy = new Joystick($('app'), $('joy-base'), $('joy-knob'));
 
@@ -192,7 +193,7 @@ $('b-nextlevel').addEventListener('click', () => { show('p-level', false); build
 function backHome() { buildLevel(); setScreen('home'); refreshHome(); }
 
 function runStep(dt) {
-  const worldPhys = { ground: (x, z) => layout.ground(x, z, tune.mu), rampAt: layout.rampAt, barrier: layout.barrier };
+  const worldPhys = { ground: (x, z) => layout.ground(x, z, tune.mu), rampAt: layout.rampAt, barrier: layout.barrier, obstacleAt: layout.obstacleAt };
   const events = [];
   const sub = 4, h = dt / sub;
   for (let i = 0; i < sub; i++) {
@@ -219,13 +220,15 @@ function runStep(dt) {
     if (e.type === 'rampboost') { sfx.boost(); showTrick('RAMPE BOOST !'); fovKick = 18; }
     if (e.type === 'takeoff') sfx.takeoff();
     if (e.type === 'land') sfx.land();
+    if (e.type === 'crash') { sfx.smash(); sfx.fail(); showTrick('CRASH !'); crashShake = 0.5; }
     if (e.type === 'trick') {
       const parts = []; if (e.flips) parts.push(e.flips > 1 ? `${e.flips} FRONT FLIPS` : 'FRONT FLIP'); if (e.rolls) parts.push(e.rolls > 1 ? `${e.rolls} TONNEAUX` : 'TONNEAU');
       showTrick(`${parts.join(' + ')} !<small>+${Math.round((e.flips + e.rolls) * 2.2 * 3.6)} km/h</small>`); sfx.trick();
     }
   }
   if (car.distance >= LEVEL_LENGTH) { finishRace(true); return; }
-  if (car.ended) finishRace(false);
+  // Après un crash, on laisse une seconde pour voir l'impact avant le bilan
+  if (car.ended) { if (!car.crashed) finishRace(false); else if (crashShake <= -0.6) finishRace(false); }
 }
 
 // Gemmes restantes du niveau, placées sur la barre de progression à leur distance
@@ -289,6 +292,8 @@ function frame(now) {
     camera.position.copy(camPos); camera.lookAt(camLook);
   }
   if (car.boostLeft > 0) fovKick = Math.max(fovKick, 10);
+  if (state === 'run' && car.ended && crashShake > -0.6) crashShake -= dt;
+  if (crashShake > 0) { crashShake -= dt; camera.position.x += (Math.random() - 0.5) * crashShake; camera.position.y += (Math.random() - 0.5) * crashShake; }
   fovKick *= Math.pow(0.25, dt); camera.fov = 56 + fovKick; camera.updateProjectionMatrix();
   sun.position.set(car.x + 16, car.y + 30, car.z + 12); sun.target.position.set(car.x, car.y, car.z - 8);
 

@@ -24,7 +24,7 @@ La voiture est posée sur un tapis motorisé. On maintient le bouton pour faire 
 
 ## Course
 
-La piste est vue de derrière la voiture. Elle est large (4 à 5 voitures de front), avec des rampes et des côtes, sans aucun obstacle. Diriger sert à aller chercher pièces et gemmes, à viser les zones goudronnées et les plaques boost, et à choisir sa trajectoire dans les bosses.
+La piste est vue de derrière la voiture. Elle est large (4 à 5 voitures de front), avec des rampes, des côtes et des obstacles. Diriger sert à éviter les obstacles, à aller chercher pièces et gemmes, à viser les zones goudronnées et les plaques boost, et à choisir sa trajectoire dans les bosses.
 
 **Joystick flottant**
 
@@ -42,11 +42,11 @@ La piste est vue de derrière la voiture. Elle est large (4 à 5 voitures de fro
 
 **Rampes à booster** : chaque rampe porte une bande d'accélération lumineuse. La poussée est donnée dès que la voiture touche la rampe (+12 m/s, soit environ +43 km/h), avec un effet de vitesse à l'écran ; le saut qui suit est long et haut, idéal pour les cascades.
 
-**Bifurcations** : 3 à 4 par niveau. Une colline rocheuse infranchissable sépare la piste en deux chemins sur 150 à 200 m. D'un côté le chemin des pièces (pièces d'or et rampe à booster), de l'autre le chemin rapide (goudron et plaques boost) ; le côté change d'une bifurcation à l'autre. Si la voiture arrive droit sur la colline, elle glisse vers le chemin le plus proche sans perdre de vitesse. Un panneau annonce chaque bifurcation.
+**Bifurcations** : 3 à 4 par niveau. Une colline rocheuse infranchissable sépare la piste en deux chemins sur 150 à 200 m. D'un côté le chemin des pièces (pièces d'or et rampe à booster), de l'autre le chemin rapide (goudron et plaques boost) ; le côté change d'une bifurcation à l'autre. Percuter la colline arrête la voiture et termine la course. Aucune rampe dans les 90 m qui précèdent une colline, pour qu'on puisse choisir son chemin au sol. Un panneau annonce chaque bifurcation.
 
 **Placement** : la première rampe est à au moins 140 m du lanceur ; aucune pièce n'est posée sur une rampe ni juste devant.
 
-**Objets cassables** : caisses et bottes de foin posées sur la piste. Percutés, ils volent en éclats sans ralentir la voiture (la règle « seul le relief ralentit » est conservée).
+**Objets cassables** : caisses et bottes de foin posées sur la piste. Percutés, ils volent en éclats sans ralentir la voiture (contrairement aux obstacles).
 
 **Décors du niveau 1** : arbres, sapins, rochers, buissons et clôtures en bordure, vaches, granges, moulins, fleurs, panneaux de distance tous les 250 m et arches colorées au-dessus de la piste.
 
@@ -54,12 +54,13 @@ La piste est vue de derrière la voiture. Elle est large (4 à 5 voitures de fro
 
 **Ralentissement et surfaces**
 
-- Seul le relief ralentit le véhicule : pas d'obstacle, pas de pénalité, pas de perte de vitesse à l'atterrissage.
+- Le relief ralentit le véhicule ; pas de perte de vitesse à l'atterrissage.
+- **Collisions** : percuter un obstacle (colline d'une bifurcation, rocher, statue ou autre élément de décor sur la piste) arrête net la voiture et termine la course, avec « CRASH ! » et une secousse de l'écran. Les obstacles n'apparaissent pas avant 260 m, ni près des rampes et des plaques. On peut survoler un obstacle en sautant assez haut.
 - La surface fait varier la décélération sur le plat : terrain de base normal ; zones goudronnées (ou glace, planches lisses selon le monde) où la voiture met plus de temps à retomber à 0 km/h.
 
 **Fin de course**
 
-- La voiture s'arrête, fait demi-tour ou recule : fin de la course, retour à l'écran d'amélioration.
+- La voiture s'arrête, fait demi-tour, recule ou percute un obstacle : fin de la course, retour à l'écran d'amélioration.
 - La voiture passe la ligne d'arrivée : niveau suivant débloqué.
 
 **Interface de course** : distance au centre en haut, barre de progression verticale à droite (drapeau, gemmes, marqueur BEST, pourcentage), compteur de vitesse en arc en bas à gauche avec le bouton booster.
@@ -176,4 +177,4 @@ Sons synthétisés en direct (Web Audio, aucun fichier) : ronronnement léger du
 
 ## Technique
 
-Jeu web en Three.js pour mobile, affichage en mode portrait uniquement. Physique des véhicules via une librairie dédiée (cannon-es ou Rapier) ou un modèle simplifié maison. Les modèles 3D procéduraux (véhicules, terrain, décors, lanceur, pièces, gemmes) sont dans `src/assets3d.js`.
+Jeu web en Three.js pour mobile, affichage en mode portrait uniquement. En l'air, la voiture garde 35 % de contrôle latéral. Physique des véhicules via une librairie dédiée (cannon-es ou Rapier) ou un modèle simplifié maison. Les modèles 3D procéduraux (véhicules, terrain, décors, lanceur, pièces, gemmes) sont dans `src/assets3d.js`.

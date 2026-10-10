@@ -41,13 +41,28 @@ export function step(car, world, t, input, dt, events) {
 
   // Latéral : direction au joystick, plus réactif quand on va vite
   const steerSpeed = 3 + Math.min(car.v, 30) * 0.32;
-  const targetVx = car.air ? car.vx : input.steer * steerSpeed;
+  // En l'air, la voiture garde un peu de contrôle latéral (35 %) pour corriger sa trajectoire
+  const targetVx = car.air ? car.vx + (input.steer * steerSpeed * 0.35 - car.vx) * 0.5 : input.steer * steerSpeed;
   car.vx += (targetVx - car.vx) * Math.min(1, dt * 6);
   car.x += car.vx * dt;
   if (Math.abs(car.x) > TRACK_HALF) { car.x = Math.sign(car.x) * TRACK_HALF; car.vx = 0; }
-  // Colline d'une bifurcation : la voiture glisse sur le côté le plus proche, sans perdre de vitesse
+  // Colline d'une bifurcation : la percuter arrête net la voiture et termine la course
+  // (sauf si la voiture la survole en sautant plus haut que la colline)
   const bar = world.barrier && world.barrier(car.x, car.z);
-  if (bar) { const side = Math.sign(car.x - bar.cx) || (car.vx >= 0 ? 1 : -1); car.x = bar.cx + side * bar.hw; car.vx = 0; }
+  if (bar && !(car.air && car.y > bar.top)) {
+    car.v = 0; car.vx = 0; car.vy = 0; car.air = false; car.pitch = 0; car.roll = 0;
+    car.ended = true; car.crashed = true; car.endReason = 'colline';
+    events.push({ type: 'crash', what: 'colline' });
+    return;
+  }
+  // Rocher, statue ou autre obstacle sur la piste : même règle, la collision arrête la voiture
+  const ob = world.obstacleAt && world.obstacleAt(car.x, car.z);
+  if (ob && !(car.air && car.y > ob.top)) {
+    car.v = 0; car.vx = 0; car.vy = 0; car.air = false; car.pitch = 0; car.roll = 0;
+    car.ended = true; car.crashed = true; car.endReason = ob.kind;
+    events.push({ type: 'crash', what: ob.kind });
+    return;
+  }
 
   if (!car.air) {
     // Rampe : la voiture grimpe le plan incliné puis décolle au sommet

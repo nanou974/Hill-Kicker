@@ -584,6 +584,24 @@ export function sign(text = '→', s = 1) {
   board.position.y = 2.1 * s; g.add(board);
   return shadowAll(g);
 }
+// Statue de pierre posée sur la piste (obstacle : la percuter arrête la voiture)
+export function statue(s = 1) {
+  const g = new THREE.Group(); const st = mat(0xB9BEC6, { flat: true }), dk = mat(0x8E949E);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.8 * s, 0.9 * s, 1.8 * s), dk); base.position.y = 0.45 * s; g.add(base);
+  const ped = new THREE.Mesh(new THREE.BoxGeometry(1.3 * s, 0.9 * s, 1.3 * s), st); ped.position.y = 1.35 * s; g.add(ped);
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.38 * s, 0.5 * s, 1.5 * s, 7), st); body.position.y = 2.55 * s; g.add(body);
+  const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.36 * s, 0), st); head.position.y = 3.6 * s; g.add(head);
+  for (const sd of [-1, 1]) { const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.12 * s, 0.12 * s, 1.1 * s, 6), st); arm.position.set(sd * 0.55 * s, 2.7 * s, 0); arm.rotation.z = sd * 0.5; g.add(arm); }
+  return shadowAll(g);
+}
+// Gros rocher en plusieurs blocs (obstacle)
+export function boulder(s = 1) {
+  const g = new THREE.Group();
+  const a = new THREE.Mesh(new THREE.DodecahedronGeometry(1.1 * s, 0), mat(0x8E949E)); a.scale.set(1.1, 0.85, 1); a.position.y = 0.7 * s; a.rotation.set(0.3, 0.8, 0.1); g.add(a);
+  const b = new THREE.Mesh(new THREE.DodecahedronGeometry(0.6 * s, 0), mat(0xA4AAB3)); b.position.set(0.8 * s, 0.4 * s, 0.4 * s); b.rotation.set(0.5, 0.2, 0.7); g.add(b);
+  const c = new THREE.Mesh(new THREE.DodecahedronGeometry(0.45 * s, 0), mat(0x7D838D)); c.position.set(-0.75 * s, 0.3 * s, -0.3 * s); g.add(c);
+  return shadowAll(g);
+}
 // Objets cassables posés sur la piste : ils ne ralentissent pas, ils volent en éclats
 export function crate(s = 1) {
   const t = canvasTex(128, 128, (c, W, H) => { c.fillStyle = '#C98B4A'; c.fillRect(0, 0, W, H); c.strokeStyle = '#7A4A1E'; c.lineWidth = 12; c.strokeRect(6, 6, W - 12, H - 12); c.beginPath(); c.moveTo(10, 10); c.lineTo(W - 10, H - 10); c.moveTo(W - 10, 10); c.lineTo(10, H - 10); c.stroke(); });

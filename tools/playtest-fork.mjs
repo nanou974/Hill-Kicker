@@ -15,12 +15,24 @@ await page.click('#b-play', { force: true }); await page.waitForTimeout(300);
 const bb = await (await page.$('#b-hold')).boundingBox();
 await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down(); await page.waitForTimeout(2600); await page.mouse.up();
 await page.waitForTimeout(500);
-const f = await page.evaluate(() => { const hk = window.__hk, f = hk.layout.forks[0]; hk.car.x = f.cx + 0.5; hk.car.z = f.z0 + 40; hk.car.v = 28; hk.car.distance = -hk.car.z; return f; });
+const f = await page.evaluate(() => { const hk = window.__hk, f = hk.layout.forks[0]; hk.car.x = f.cx; hk.car.z = f.z0 + 25; hk.car.v = 28; hk.car.distance = -hk.car.z; return f; });
 console.log('bifurcation', JSON.stringify(f));
 await page.evaluate(() => window.__hk.simulate(1.0)); await page.waitForTimeout(1500);
 await page.screenshot({ path: path.join(out, 'f1-entree.png') });
-await page.evaluate(() => window.__hk.simulate(1.6)); await page.waitForTimeout(1500);
-await page.screenshot({ path: path.join(out, 'f2-dans-le-chemin.png') });
-console.log('voiture', JSON.stringify(await page.evaluate(() => ({ x: window.__hk.car.x, z: window.__hk.car.z, v: window.__hk.car.v }))));
+await page.evaluate(() => window.__hk.simulate(1.0)); await page.waitForTimeout(300);
+await page.screenshot({ path: path.join(out, 'f2-crash.png') });
+await page.waitForTimeout(2500);
+await page.screenshot({ path: path.join(out, 'f3-bilan.png') });
+// Statue / rocher : la voiture est placée face au premier obstacle
+await page.click('#b-continue'); await page.waitForTimeout(400);
+await page.click('#b-play', { force: true }); await page.waitForTimeout(300);
+await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down(); await page.waitForTimeout(2600); await page.mouse.up(); await page.waitForTimeout(400);
+console.log('obstacle', JSON.stringify(await page.evaluate(() => { const hk = window.__hk, o = hk.layout.obstacles[0]; hk.car.x = o.x; hk.car.z = o.z + 22; hk.car.v = 22; hk.car.distance = -hk.car.z; return o; })));
+await page.evaluate(() => window.__hk.simulate(0.6)); await page.waitForTimeout(1500);
+await page.screenshot({ path: path.join(out, 'f4-avant-obstacle.png') });
+await page.evaluate(() => window.__hk.simulate(1.0)); await page.waitForTimeout(300);
+await page.screenshot({ path: path.join(out, 'f5-crash-obstacle.png') });
+console.log('fin', JSON.stringify(await page.evaluate(() => ({ state: window.__hk.state, reason: window.__hk.car.endReason }))));
+
 console.log('erreurs:', errors.length ? errors.join('\n') : 'aucune');
 await browser.close(); server.close();
