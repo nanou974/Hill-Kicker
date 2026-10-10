@@ -11,6 +11,9 @@ import { Sound } from './audio.js';
 import { VERSION } from './version.js';
 
 const $ = (id) => document.getElementById(id);
+// Vitesse affichée : le décor low-poly donne une impression de vitesse plus faible que la vitesse physique,
+// on affiche donc une valeur à l'échelle du visuel (m/s × 3,6 × 0,55)
+const KMH = 3.6 * 0.55;
 $('v-version').textContent = `v${VERSION}`;
 const eco = new Economy();
 const sfx = new Sound();
@@ -225,7 +228,7 @@ function runStep(dt) {
     if (e.type === 'crash') { sfx.smash(); sfx.fail(); showTrick('CRASH !'); crashShake = 0.5; }
     if (e.type === 'trick') {
       const parts = []; if (e.flips) parts.push(e.flips > 1 ? `${e.flips} FRONT FLIPS` : 'FRONT FLIP'); if (e.rolls) parts.push(e.rolls > 1 ? `${e.rolls} TONNEAUX` : 'TONNEAU');
-      showTrick(`${parts.join(' + ')} !<small>+${Math.round((e.flips + e.rolls) * 2.2 * 3.6)} km/h</small>`); sfx.trick();
+      showTrick(`${parts.join(' + ')} !<small>+${Math.round((e.flips + e.rolls) * 2.2 * KMH)} km/h</small>`); sfx.trick();
     }
   }
   if (car.distance >= LEVEL_LENGTH) { finishRace(true); return; }
@@ -256,9 +259,9 @@ function updateRunHud() {
   const p = d / LEVEL_LENGTH * 100;
   $('prog-fill').style.height = `${p}%`; $('prog-dot').style.bottom = `${p}%`; $('v-prog').textContent = `${Math.floor(p)}%`;
   $('prog-best').style.bottom = `${Math.min(100, eco.s.best / LEVEL_LENGTH * 100)}%`; $('prog-best').hidden = eco.s.best <= 0;
-  const kmh = Math.max(0, car.v * 3.6);
+  const kmh = Math.max(0, car.v * KMH);
   $('v-kmh').textContent = Math.round(kmh);
-  $('speed-arc').setAttribute('stroke-dasharray', `${Math.min(100, kmh / 160 * 100)} 100`);
+  $('speed-arc').setAttribute('stroke-dasharray', `${Math.min(100, kmh / 90 * 100)} 100`);
   if (car.boostLeft <= 0) $('b-boost').classList.remove('on');
 }
 
@@ -287,10 +290,13 @@ function frame(now) {
     // Vue de trois quarts : quand la voiture tourne, la caméra glisse du côté opposé et voit son flanc
     const sideTarget = state === 'run' && !car.air ? Math.max(-4.5, Math.min(4.5, car.vx * 0.5)) : 0;
     camSide += (sideTarget - camSide) * Math.min(1, dt * 2.5);
-    const tp = new THREE.Vector3(car.x * 0.6 - camSide, car.y + 5.4, car.z + 12.5);
-    const tl = new THREE.Vector3(car.x * 0.85 + camSide * 0.5, car.y - 5.5, car.z - 24);
+    // La caméra suit la voiture sur toute la largeur : elle reste toujours au centre de l'écran
+    const tp = new THREE.Vector3(car.x - camSide, car.y + 5.4, car.z + 12.5);
+    const tl = new THREE.Vector3(car.x + camSide * 0.35, car.y - 5.5, car.z - 24);
     if (state === 'launch') { camPos.copy(tp); camLook.copy(tl); }
-    camPos.lerp(tp, Math.min(1, dt * 5)); camLook.lerp(tl, Math.min(1, dt * 5));
+    const kx = Math.min(1, dt * 9), k = Math.min(1, dt * 5);
+    camPos.set(camPos.x + (tp.x - camPos.x) * kx, camPos.y + (tp.y - camPos.y) * k, camPos.z + (tp.z - camPos.z) * k);
+    camLook.set(camLook.x + (tl.x - camLook.x) * kx, camLook.y + (tl.y - camLook.y) * k, camLook.z + (tl.z - camLook.z) * k);
     camera.position.copy(camPos); camera.lookAt(camLook);
   }
   if (car.boostLeft > 0) fovKick = Math.max(fovKick, 10);

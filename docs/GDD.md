@@ -36,11 +36,13 @@ La piste est vue de derrière la voiture. Elle est large (4 à 5 voitures de fro
 
 - **Automatiques** : au décollage d'une rampe, le jeu calcule la durée du saut et lance tout seul une cascade, en alternant front flip et tonneau, avec 1 ou 2 tours selon le temps de vol (0 si le saut est trop court).
 - La voiture revient automatiquement sur ses roues avant de toucher le sol.
-- Chaque tour réussi donne un petit boost de vitesse à l'atterrissage (+8 km/h par tour).
+- Chaque tour réussi donne un petit boost de vitesse à l'atterrissage (+2,2 m/s par tour, affiché +4 km/h).
 
 **Plaques d'accélération** : placées selon le terrain, notamment avant les grosses côtes.
 
-**Rampes à booster** : chaque rampe porte une bande d'accélération lumineuse. La poussée est donnée dès que la voiture touche la rampe (+6 m/s, soit environ +22 km/h), avec un effet de vitesse à l'écran. Le saut dure environ 2 à 3 s.
+**Compteur de vitesse** : la vitesse affichée est mise à l'échelle du visuel (m/s × 3,6 × 0,55), car la vitesse physique réelle paraissait trop élevée à l'écran.
+
+**Rampes à booster** : chaque rampe porte une bande d'accélération lumineuse. La poussée est donnée dès que la voiture touche la rampe (+6 m/s, affiché environ +12 km/h), avec un effet de vitesse à l'écran. Le saut dure environ 2 à 3 s.
 
 **Bifurcations** : 3 à 4 par niveau. Une colline rocheuse infranchissable sépare la piste en deux chemins sur 150 à 200 m. D'un côté le chemin des pièces (pièces d'or et rampe à booster), de l'autre le chemin rapide (goudron et plaques boost) ; le côté change d'une bifurcation à l'autre. Percuter la colline arrête la voiture et termine la course. Aucune rampe dans les 90 m qui précèdent une colline, pour qu'on puisse choisir son chemin au sol. Un panneau annonce chaque bifurcation.
 

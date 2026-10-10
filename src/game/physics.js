@@ -4,7 +4,7 @@
 
 export const G = 9.81;
 export const TRACK_HALF = 21; // demi-largeur roulable de la piste
-export const RAMP_BOOST = 6;  // poussée (m/s) dès que la voiture touche une rampe à booster (≈ +22 km/h)
+export const RAMP_BOOST = 6;  // poussée (m/s) dès que la voiture touche une rampe à booster (≈ +12 km/h affichés)
 const TRICK_TIME = 0.8;       // durée minimale d'une rotation complète (s)
 
 // Paramètres dérivés des améliorations

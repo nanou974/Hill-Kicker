@@ -30,11 +30,18 @@ export class World {
     const zf = -LEVEL_LENGTH, yf = L.ground(0, zf, 1).h;
     const gate = new THREE.Group();
     const pm = A.mat(0xFFFFFF, { flat: false });
-    for (const s of [-1, 1]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, 9, 12), pm); p.position.set(s * 14, 4.5, 0); gate.add(p); }
+    // Poteaux de chaque côté de la piste, hors de la zone roulable
+    const half = 22, px = half + 1.5;
+    for (const s of [-1, 1]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, 9, 12), pm); p.position.set(s * px, L.ground(s * px, zf, 1).h - yf + 4.5, 0); gate.add(p); }
     const ck = new THREE.CanvasTexture((() => { const c = document.createElement('canvas'); c.width = 512; c.height = 64; const g = c.getContext('2d'); for (let i = 0; i < 32; i++) for (let j = 0; j < 4; j++) { g.fillStyle = (i + j) % 2 ? '#14213D' : '#FFFFFF'; g.fillRect(i * 16, j * 16, 16, 16); } return c; })());
     ck.colorSpace = THREE.SRGBColorSpace;
-    const banner = new THREE.Mesh(new THREE.BoxGeometry(29, 2.4, 0.4), A.mat(0xffffff, { map: ck })); banner.position.y = 8.6; gate.add(banner);
-    const line = new THREE.Mesh(new THREE.PlaneGeometry(2 * 22, 2.5), new THREE.MeshStandardMaterial({ map: ck, roughness: 0.9 })); line.rotation.x = -Math.PI / 2; line.position.y = 0.06; gate.add(line);
+    const banner = new THREE.Mesh(new THREE.BoxGeometry(2 * px + 1, 2.4, 0.4), A.mat(0xffffff, { map: ck })); banner.position.y = 8.6; gate.add(banner);
+    // Ligne au sol : bande découpée en segments qui épouse le relief sur toute la largeur de la piste
+    const lineGeo = new THREE.PlaneGeometry(2 * px, 2.5, 48, 2); lineGeo.rotateX(-Math.PI / 2);
+    const lp = lineGeo.attributes.position;
+    for (let i = 0; i < lp.count; i++) lp.setY(i, L.ground(lp.getX(i), zf + lp.getZ(i), 1).h - yf + 0.08);
+    lineGeo.computeVertexNormals();
+    const line = new THREE.Mesh(lineGeo, new THREE.MeshStandardMaterial({ map: ck, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2 })); line.receiveShadow = true; gate.add(line);
     gate.position.set(0, yf, zf); gate.traverse(o => { if (o.isMesh) o.castShadow = true; }); this.root.add(gate);
   }
 
