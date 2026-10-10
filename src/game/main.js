@@ -67,6 +67,7 @@ const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 let camSide = 0;  // décalage latéral de la caméra : vue de trois quarts dans les virages
 let crashShake = 0; // secousse de la caméra quand la voiture percute un obstacle
 let fovKick = 0;  // effet de vitesse (élargissement du champ de vision) quand un boost propulse la voiture
+let fovNow = 0;   // valeur réellement appliquée : elle suit fovKick en douceur (pas de saut d'image)
 const joy = new Joystick($('app'), $('joy-base'), $('joy-knob'));
 
 function buildLevel() {
@@ -216,7 +217,7 @@ $('b-launchback').addEventListener('click', () => { setScreen('home'); refreshHo
 // ---------- course ----------
 function useBoost() {
   if (state !== 'run' || boostUsed || eco.boosterTime() <= 0) return;
-  boostUsed = true; car.boostLeft = eco.boosterTime(); $('b-boost').classList.add('on'); $('b-boost').disabled = true; sfx.boost(); fovKick = Math.max(fovKick, 12);
+  boostUsed = true; car.boostLeft = eco.boosterTime(); $('b-boost').classList.add('on'); $('b-boost').disabled = true; sfx.boost(); fovKick = Math.max(fovKick, 8);
 }
 $('b-boost').addEventListener('click', useBoost);
 addEventListener('keydown', (e) => { if (e.code === 'Space') { e.preventDefault(); if (state === 'launch' && !holding) hold.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1 })); else useBoost(); } });
@@ -255,7 +256,7 @@ function runStep(dt) {
     else step(car, worldPhys, tune, { steer: joy.steer }, h, events);
     if (!car.air && !onLauncher) {
       const p = layout.plateTouch(car.x, car.z); // le moindre contact avec la plaque déclenche le boost
-      if (p && car._plate !== p) { car.v += 5; car._plate = p; showTrick('BOOST !'); sfx.boost(); fovKick = Math.max(fovKick, 9); }
+      if (p && car._plate !== p) { car.v += 5; car._plate = p; showTrick('BOOST !'); sfx.boost(); fovKick = Math.max(fovKick, 6); }
     }
   }
   // Pièces et gemmes
@@ -270,7 +271,7 @@ function runStep(dt) {
   }
   for (const g of layout.gems) if (!g.taken && Math.abs(g.z - car.z) < 1.8 && Math.abs(g.x - car.x) < 1.8) { world.take(g); if (eco.takeGem(g.id)) { runGems++; sfx.gem(); popValue('+1', 'gem'); removeGemMarker(g.id); } }
   for (const e of events) {
-    if (e.type === 'rampboost') { sfx.boost(); showTrick('RAMPE BOOST !'); fovKick = 18; }
+    if (e.type === 'rampboost') { sfx.boost(); showTrick('RAMPE BOOST !'); fovKick = Math.max(fovKick, 8); }
     if (e.type === 'takeoff') sfx.takeoff();
     if (e.type === 'land') sfx.land();
     if (e.type === 'crash') { sfx.smash(); sfx.fail(); showTrick('CRASH !'); crashShake = 0.5; }
@@ -350,14 +351,15 @@ function frame(now) {
     if (state === 'launch') { camPos.copy(tp); camLook.copy(tl); }
     const snap = window.__hk && window.__hk.freeze, kx = snap ? 1 : Math.min(1, dt * 9), k = snap ? 1 : Math.min(1, dt * 5);
     const ky = !snap && tp.y < camPos.y - 0.5 && ceil < Infinity ? Math.min(1, dt * 12) : k;
-    camPos.set(camPos.x + (tp.x - camPos.x) * kx, camPos.y + (tp.y - camPos.y) * ky, camPos.z + (tp.z - camPos.z) * k);
-    camLook.set(camLook.x + (tl.x - camLook.x) * kx, camLook.y + (tl.y - camLook.y) * k, camLook.z + (tl.z - camLook.z) * k);
+    // en profondeur, la caméra reste collée à la voiture : un coup d'accélérateur ne la fait pas décrocher (pas d'effet de recul)
+    camPos.set(camPos.x + (tp.x - camPos.x) * kx, camPos.y + (tp.y - camPos.y) * ky, state === 'run' ? tp.z : camPos.z + (tp.z - camPos.z) * k);
+    camLook.set(camLook.x + (tl.x - camLook.x) * kx, camLook.y + (tl.y - camLook.y) * k, state === 'run' ? tl.z : camLook.z + (tl.z - camLook.z) * k);
     camera.position.copy(camPos); camera.lookAt(camLook);
   }
-  if (car.boostLeft > 0) fovKick = Math.max(fovKick, 10);
+  if (car.boostLeft > 0) fovKick = Math.max(fovKick, 7);
   if (state === 'run' && car.ended && crashShake > -0.6) crashShake -= dt;
   if (crashShake > 0) { crashShake -= dt; camera.position.x += (Math.random() - 0.5) * crashShake; camera.position.y += (Math.random() - 0.5) * crashShake; }
-  fovKick *= Math.pow(0.25, dt); camera.fov = 60 + fovKick; camera.updateProjectionMatrix();
+  fovKick *= Math.pow(0.35, dt); fovNow += (fovKick - fovNow) * Math.min(1, dt * 4); camera.fov = 60 + fovNow; camera.updateProjectionMatrix();
   sun.position.set(car.x + 16, car.y + 30, car.z + 12); sun.target.position.set(car.x, car.y, car.z - 8);
 
   uiTimer -= dt; if (uiTimer <= 0) { uiTimer = 0.5; eco.tick(); if (state === 'home') refreshHome(); else refreshTop(); }

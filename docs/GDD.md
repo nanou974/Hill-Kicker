@@ -64,7 +64,7 @@ La piste est vue de derrière la voiture. Elle est large (4 à 5 voitures de fro
 
 **Décors du niveau 1** : arbres, sapins, rochers, buissons et clôtures en bordure, vaches, granges, moulins, fleurs, panneaux de distance tous les 250 m et arches colorées au-dessus de la piste.
 
-**Caméra** : derrière la voiture, surélevée (8 m) et tournée loin devant : la voiture occupe le bas de l'écran et la piste se lit jusqu'à l'horizon (brouillard à partir de 90 m, horizon à ~290 m, champ de vision 60°). Elle monte encore pour les véhicules hauts (monster truck, bus…) afin de voir ce qui arrive juste devant. Elle suit la voiture sur toute la largeur. Dans les virages, elle glisse du côté opposé pour une vue de trois quarts. Sous la voûte d'un tunnel, d'une grotte ou d'une arche, elle descend pour rester dans le passage.
+**Caméra** : derrière la voiture, surélevée (8 m) et tournée loin devant : la voiture occupe le bas de l'écran et la piste se lit jusqu'à l'horizon (brouillard à partir de 90 m, horizon à ~290 m, champ de vision 60°). Elle monte encore pour les véhicules hauts (monster truck, bus…) afin de voir ce qui arrive juste devant. Elle suit la voiture sur toute la largeur. Dans les virages, elle glisse du côté opposé pour une vue de trois quarts. Sous la voûte d'un tunnel, d'une grotte ou d'une arche, elle descend pour rester dans le passage. En profondeur, elle reste collée à la voiture (aucun décrochage quand la voiture accélère) ; l'effet de vitesse d'un boost est un léger élargissement du champ de vision (6 à 8°) qui monte et redescend en douceur.
 
 **Gemmes visibles de loin** : chaque gemme sur la piste est surmontée d'une colonne de lumière rose qui traverse le brouillard ; elle s'efface quand on arrive dessus.
 
