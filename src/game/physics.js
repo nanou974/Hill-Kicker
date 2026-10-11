@@ -105,7 +105,7 @@ export function step(car, world, t, input, dt, events) {
     if (car.boostLeft > 0) { car.v += 7 * dt; car.boostLeft -= dt; }
     car.z -= car.v * dt;
     car.distance = Math.max(car.distance, -car.z);
-    car.vy -= G * dt;
+    car.vy -= G * (world.gravity ?? 1) * dt; // gravité réduite en l'air sur la Lune et sous la mer
     car.y += car.vy * dt;
     const ground = world.ground(car.x, car.z).h;
     // Rotation automatique jusqu'au nombre de tours prévu, puis la voiture se stabilise roues en bas
@@ -115,7 +115,7 @@ export function step(car, world, t, input, dt, events) {
       if (tr.kind === 'flip') car.pitch = -tr.a; else car.roll = tr.dir * tr.a;
     }
     // Dernier tiers de seconde : retour en douceur à l'horizontale si besoin
-    const tLeft = estimateAirLeft(car.y - ground, car.vy);
+    const tLeft = estimateAirLeft(car.y - ground, car.vy, G * (world.gravity ?? 1));
     if (!tr || tr.a >= tr.target) { const k = Math.min(1, dt * 10); car.pitch -= car.pitch * k * (tLeft < 0.4 ? 1 : 0.3); car.roll -= car.roll * k * (tLeft < 0.4 ? 1 : 0.3); }
     if (car.y <= ground) {
       // Atterrissage automatique roues en bas, sans perte de vitesse
@@ -135,7 +135,8 @@ export function step(car, world, t, input, dt, events) {
 let trickCount = 0;
 function planTrick(car, world) {
   let x = car.x, z = car.z, y = car.y, vy = car.vy, T = 0;
-  for (; T < 8; T += 1 / 60) { vy -= G / 60; y += vy / 60; z -= car.v / 60; if (y <= world.ground(x, z).h) break; }
+  const gw = G * (world.gravity ?? 1);
+  for (; T < 10; T += 1 / 60) { vy -= gw / 60; y += vy / 60; z -= car.v / 60; if (y <= world.ground(x, z).h) break; }
   const n = Math.max(0, Math.min(2, Math.floor((T - 0.35) / TRICK_TIME)));
   const kind = trickCount++ % 2 === 0 ? 'flip' : 'roll';
   const target = n * Math.PI * 2;
@@ -144,10 +145,10 @@ function planTrick(car, world) {
   car.trick = tr; car.pitch = 0; car.roll = 0;
 }
 
-function estimateAirLeft(height, vy) {
+function estimateAirLeft(height, vy, g = G) {
   // temps restant avant de toucher le sol : y(t) = height + vy t - g t²/2 = 0
-  const d = vy * vy + 2 * G * Math.max(0, height);
-  return (vy + Math.sqrt(d)) / G;
+  const d = vy * vy + 2 * g * Math.max(0, height);
+  return (vy + Math.sqrt(d)) / g;
 }
 
 export function launchSpeed(t, pct) {

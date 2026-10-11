@@ -1,399 +1,197 @@
-// Mondes du jeu : chaque niveau a son paysage (ciel, couleurs du terrain, décor, objets sur la piste).
-// Après le dernier monde, le jeu recommence au premier (niveau 21 = monde 1, etc.) : il n'y a pas de fin.
-// Seule l'apparence change : le relief, la physique et l'économie restent ceux du niveau.
-import * as THREE from 'three';
+// Les 20 mondes de Hill Kicker : un thème par niveau (niveau 21 = monde 1 avec une pente plus forte, etc.).
+// Chaque thème décrit le sol (piste, bas-côtés, champs), les zones spéciales de la piste (rapides / lentes),
+// le ciel, la lumière, le brouillard, le relief, la gravité et les décors.
 import * as A from '../assets3d.js';
+import * as P from '../props.js';
 
-// ---------- matériaux partagés (un seul matériau par couleur : le décor fusionné en profite) ----------
-const mats = new Map();
-const M = (c, o) => { const k = c + JSON.stringify(o || {}); if (!mats.has(k)) mats.set(k, A.mat(c, o)); return mats.get(k); };
-const mesh = (geo, c, o) => new THREE.Mesh(geo, M(c, o));
-const shadow = (g) => { g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); return g; };
-const set = (c, rgb, n = 0) => c.setRGB(rgb[0] + n, rgb[1] + n, rgb[2] + n * 0.5, THREE.SRGBColorSpace);
-const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+// Raccourcis : f(s, r) crée un décor à l'échelle s avec le générateur r
+const T = {
+  hayBlock: (s) => A.hayBlock(s), crate: (s) => A.crate(s),
+  tree: (s, r) => A.tree(s, Math.floor(r() * 4)), pine: (s) => A.pine(s), rock: (s) => A.rock(s), hay: (s) => A.hay(s),
+  bush: (s, r) => A.bush(s, Math.floor(r() * 4)), barn: (s) => A.barn(s), windmill: (s) => A.windmill(s), cow: (s) => A.cow(s),
+  ...P,
+  greenBush: (s, r) => P.roundTree(s * 0.5, r, [0x3E8E37, 0x4FA548, 0x5DB04A]),
+  snowPine: (s, r) => P.coneTree(s, r, [0x2F6A3E, 0x3A7A48], 0x5A4030, true),
+  autumnBush: (s, r) => P.roundTree(s * 0.45, r, [0xE07B26, 0xC9471F, 0xEAB02A]),
+  dryBush: (s, r) => P.roundTree(s * 0.45, r, [0xA8A050, 0x8E8A40, 0xB8A860], 0x6B5A48),
+  pinkBush: (s, r) => P.roundTree(s * 0.45, r, [0xF7B6C8, 0xF49AB6]),
+  sandRock: (s) => A.lump(Math.floor(s * 97) % 30 + 300, s, s * 0.6, s * 0.9, 0xD8C08A),
+  redRock: (s) => A.lump(Math.floor(s * 97) % 30 + 330, s * 1.2, s * 0.9, s, 0xB8573A),
+  blackRock: (s) => A.lump(Math.floor(s * 97) % 30 + 360, s, s * 0.7, s, 0x2B2727),
+  moonRock: (s) => A.lump(Math.floor(s * 97) % 30 + 390, s, s * 0.6, s, 0x9A9AA0),
+  blueRock: (s) => A.lump(Math.floor(s * 97) % 30 + 420, s, s * 0.7, s, 0x6E8AA8),
+};
 
-// ---------- décors communs à plusieurs mondes ----------
-function leafyTree(s, cols, trunk = 0x7A5230, hue = 0) {
-  const g = new THREE.Group();
-  const t = mesh(new THREE.CylinderGeometry(0.18 * s, 0.28 * s, 1.6 * s, 6), trunk); t.position.y = 0.8 * s; g.add(t);
-  for (let i = 0; i < 3; i++) {
-    const b = mesh(new THREE.IcosahedronGeometry((1.1 - i * 0.18) * s, 0), cols[(i + hue) % cols.length]);
-    b.position.set((i - 1) * 0.45 * s, (1.9 + i * 0.55) * s, (i % 2 ? 0.3 : -0.2) * s); b.rotation.set(i * 1.3 + hue, i * 2.1, 0); g.add(b);
-  }
-  return shadow(g);
-}
-function blobBush(s, cols, hue = 0) {
-  const g = new THREE.Group();
-  for (let i = 0; i < 3; i++) { const b = mesh(new THREE.IcosahedronGeometry((0.55 - i * 0.1) * s, 0), cols[(i + hue) % cols.length]); b.position.set((i - 1) * 0.45 * s, 0.4 * s, (i % 2 ? 0.2 : -0.15) * s); g.add(b); }
-  return shadow(g);
-}
-// Mare ou lagon : disque plat orienté selon la pente du terrain
-function pond(rad, water, rim) {
-  const g = new THREE.Group();
-  const r = mesh(new THREE.CircleGeometry(rad + 0.7, 9), rim); r.rotation.x = -Math.PI / 2; r.position.y = 0.06; g.add(r);
-  const w = mesh(new THREE.CircleGeometry(rad, 9), water, { r: 0.15, m: 0.1, env: 0.8 }); w.rotation.x = -Math.PI / 2; w.position.y = 0.12; g.add(w);
-  g.traverse(o => { if (o.isMesh) o.receiveShadow = true; });
-  return g;
-}
-
-// ---------- Champs de lavande ----------
-function cypress(s) {
-  const g = new THREE.Group();
-  const t = mesh(new THREE.CylinderGeometry(0.12 * s, 0.16 * s, 0.8 * s, 5), 0x6B4A2B); t.position.y = 0.4 * s; g.add(t);
-  const c = mesh(new THREE.IcosahedronGeometry(1, 0), 0x2E5A2E); c.scale.set(0.6 * s, 2.6 * s, 0.6 * s); c.position.y = 3 * s; g.add(c);
-  return shadow(g);
-}
-function olive(s, hue) {
-  const g = new THREE.Group();
-  const t = mesh(new THREE.CylinderGeometry(0.16 * s, 0.32 * s, 1.3 * s, 5), 0x6E5A44); t.position.y = 0.65 * s; t.rotation.z = 0.15; g.add(t);
-  const cols = [0x8FA37A, 0x7F9668, 0x9DB08A];
-  for (let i = 0; i < 3; i++) { const b = mesh(new THREE.IcosahedronGeometry((0.85 - i * 0.12) * s, 0), cols[(i + hue) % 3]); b.scale.y = 0.7; b.position.set((i - 1) * 0.6 * s, (1.6 + (i % 2) * 0.35) * s, (i % 2 ? 0.3 : -0.25) * s); g.add(b); }
-  return shadow(g);
-}
-// Morceau de rangée de lavande : bande bombée violette de 3 m (les rangées sont posées morceau par morceau pour suivre le relief)
-const LAV_GEO = new THREE.CylinderGeometry(0.5, 0.5, 3.1, 6, 1);
-function lavender(hue) {
-  const m = mesh(LAV_GEO, hue ? 0x9A7AD0 : 0x8A68C4); m.rotation.x = Math.PI / 2; m.scale.set(1, 1, 0.75); m.position.y = 0.3;
-  const g = new THREE.Group(); g.add(m); return g;
-}
-function mas(s) {
-  const g = new THREE.Group();
-  const body = mesh(new THREE.BoxGeometry(9 * s, 4.5 * s, 6 * s), 0xE8D8B8); body.position.y = 2.25 * s; g.add(body);
-  const wing = mesh(new THREE.BoxGeometry(4 * s, 3.2 * s, 5 * s), 0xDCCBA8); wing.position.set(6.3 * s, 1.6 * s, 0.4 * s); g.add(wing);
-  for (const [w, d, x, y] of [[9.6, 6.6, 0, 4.5], [4.5, 5.6, 6.3, 3.2]]) {
-    const roof = mesh(new THREE.CylinderGeometry(0.01, 1, 1, 4, 1), 0xC8643C); roof.rotation.y = Math.PI / 4; roof.scale.set(w * 0.72 * s, 1.4 * s, d * 0.72 * s); roof.position.set(x * s, (y + 0.7) * s, 0); g.add(roof);
-  }
-  for (const x of [-2.8, 0, 2.8]) { const sh = mesh(new THREE.BoxGeometry(1.1 * s, 1.3 * s, 0.12), 0x6FA8C8); sh.position.set(x * s, 2.8 * s, 3.02 * s); g.add(sh); }
-  const door = mesh(new THREE.BoxGeometry(1.3 * s, 2.2 * s, 0.12), 0x7A5230); door.position.set(-1.4 * s, 1.1 * s, 3.02 * s); g.add(door);
-  const ch = mesh(new THREE.BoxGeometry(0.7 * s, 1.6 * s, 0.7 * s), 0xD6C4A0); ch.position.set(2.5 * s, 5.6 * s, -1 * s); g.add(ch);
-  return shadow(g);
-}
-function beehives(n) {
-  const g = new THREE.Group();
-  for (let i = 0; i < n; i++) {
-    const h = new THREE.Group();
-    for (let k = 0; k < 2; k++) { const b = mesh(new THREE.BoxGeometry(0.8, 0.45, 0.65), k ? 0xF3E9D2 : 0xE8D9B4); b.position.y = 0.55 + k * 0.47; h.add(b); }
-    const lid = mesh(new THREE.BoxGeometry(0.95, 0.12, 0.8), 0xE0A93A); lid.position.y = 1.32; h.add(lid);
-    for (const [x, z] of [[-0.3, -0.25], [0.3, -0.25], [-0.3, 0.25], [0.3, 0.25]]) { const l = mesh(new THREE.BoxGeometry(0.08, 0.35, 0.08), 0x7A5230); l.position.set(x, 0.17, z); h.add(l); }
-    h.position.x = i * 1.4; g.add(h);
-  }
-  return shadow(g);
-}
-function stoneWall(len) {
-  const g = new THREE.Group(), n = Math.round(len / 1.5);
-  for (let i = 0; i < n; i++) { const b = mesh(new THREE.BoxGeometry(0.6, 0.55 + (i % 3) * 0.08, 1.45), i % 2 ? 0xCFC2A8 : 0xBFB197); b.position.set(0, 0.3, -i * 1.5 - 0.75); b.rotation.y = (i % 3 - 1) * 0.04; g.add(b); }
-  return shadow(g);
-}
-
-// ---------- Forêt d'automne ----------
-const AUTUMN = [0xE07B2A, 0xC94A2A, 0xF2B33D, 0xB8562A, 0xE89A35];
-function birch(s, hue) {
-  const g = new THREE.Group();
-  const t = mesh(new THREE.CylinderGeometry(0.13 * s, 0.17 * s, 3.2 * s, 6), 0xEDE8DC); t.position.y = 1.6 * s; g.add(t);
-  for (const y of [0.7, 1.5, 2.3]) { const b = mesh(new THREE.BoxGeometry(0.36 * s, 0.08 * s, 0.36 * s), 0x2B2B2B); b.position.y = y * s; g.add(b); }
-  const cols = [0xF2C94C, 0xE8B23A, 0xF7D86A];
-  for (let i = 0; i < 2; i++) { const c = mesh(new THREE.IcosahedronGeometry((0.95 - i * 0.2) * s, 0), cols[(i + hue) % 3]); c.position.set((i - 0.5) * 0.4 * s, (3.4 + i * 0.6) * s, 0); c.scale.y = 1.25; g.add(c); }
-  return shadow(g);
-}
-function autumnPine(s) {
-  const g = new THREE.Group();
-  const t = mesh(new THREE.CylinderGeometry(0.15 * s, 0.22 * s, 1 * s, 6), 0x5A3E24); t.position.y = 0.5 * s; g.add(t);
-  for (let i = 0; i < 3; i++) { const c = mesh(new THREE.ConeGeometry((1.3 - i * 0.32) * s, 1.5 * s, 7), i % 2 ? 0x2A5E35 : 0x356B3C); c.position.y = (1.4 + i * 0.75) * s; g.add(c); }
-  return shadow(g);
-}
-function log(len) {
-  const g = new THREE.Group();
-  const l = mesh(new THREE.CylinderGeometry(0.42, 0.48, len, 7), 0x6E4A2C); l.rotation.z = Math.PI / 2; l.position.y = 0.42; g.add(l);
-  for (const s of [-1, 1]) { const e = mesh(new THREE.CircleGeometry(0.4, 7), 0xD9B27A); e.rotation.y = s * Math.PI / 2; e.position.set(s * (len / 2 + 0.01), 0.42, 0); g.add(e); }
-  const moss = mesh(new THREE.BoxGeometry(len * 0.4, 0.1, 0.5), 0x5E8A3A); moss.position.set(len * 0.1, 0.86, 0); g.add(moss);
-  return shadow(g);
-}
-// Champignon géant (décor ou obstacle sur la piste : chapeau rouge à pois blancs)
-export function mushroom(s = 1) {
-  const g = new THREE.Group();
-  const st = mesh(new THREE.CylinderGeometry(0.45 * s, 0.6 * s, 2.6 * s, 8), 0xF2EADB, { flat: false }); st.position.y = 1.3 * s; g.add(st);
-  const cap = mesh(new THREE.SphereGeometry(1.5 * s, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), 0xD8332F); cap.scale.y = 0.75; cap.position.y = 2.5 * s; g.add(cap);
-  const under = mesh(new THREE.CircleGeometry(1.5 * s, 10), 0xEFD9C0); under.rotation.x = Math.PI / 2; under.position.y = 2.5 * s; g.add(under);
-  for (let i = 0; i < 7; i++) {
-    const a = i * 2.4, el = i === 0 ? 1.2 : 0.55 + (i % 2) * 0.35, d = mesh(new THREE.IcosahedronGeometry(0.2 * s, 0), 0xFFFFFF);
-    d.position.set(Math.cos(a) * Math.cos(el) * 1.5 * s, 2.5 * s + Math.sin(el) * 1.12 * s, Math.sin(a) * Math.cos(el) * 1.5 * s); d.scale.y = 0.5; g.add(d);
-  }
-  return shadow(g);
-}
-function leafPile(s, hue) {
-  const g = new THREE.Group();
-  for (let i = 0; i < 4; i++) { const l = mesh(new THREE.IcosahedronGeometry(0.5 * s, 0), AUTUMN[(i + hue) % AUTUMN.length]); l.scale.y = 0.35; l.position.set((i - 1.5) * 0.45 * s, 0.12 * s, (i % 2 - 0.5) * 0.5 * s); g.add(l); }
-  return g;
-}
-function pumpkin(s = 1) {
-  const g = new THREE.Group();
-  const b = mesh(new THREE.SphereGeometry(0.62 * s, 9, 6), 0xF07A1F); b.scale.y = 0.72; b.position.y = 0.45 * s; g.add(b);
-  const st = mesh(new THREE.CylinderGeometry(0.06 * s, 0.09 * s, 0.3 * s, 5), 0x4F7A2A); st.position.y = 0.95 * s; g.add(st);
-  return shadow(g);
-}
-
-// ---------- Plage tropicale ----------
-function palm(s, lean) {
-  const g = new THREE.Group();
-  let x = 0, y = 0, a = 0;
-  for (let i = 0; i < 6; i++) {
-    const seg = mesh(new THREE.CylinderGeometry((0.2 - i * 0.015) * s, (0.24 - i * 0.015) * s, 1.1 * s, 6), i % 2 ? 0x9C7A52 : 0x8A6A45);
-    seg.position.set(x, y + 0.55 * s, 0); seg.rotation.z = -a; g.add(seg);
-    x += Math.sin(a) * 1.05 * s; y += Math.cos(a) * 1.05 * s; a += lean;
-  }
-  const top = new THREE.Group(); top.position.set(x, y, 0); g.add(top);
-  for (let i = 0; i < 7; i++) {
-    const f = new THREE.Group(); f.rotation.y = i / 7 * Math.PI * 2;
-    const leaf = mesh(new THREE.BoxGeometry(2.6 * s, 0.06 * s, 0.7 * s), i % 2 ? 0x3E9A3A : 0x4FB247); leaf.position.x = 1.2 * s; leaf.rotation.z = -0.45; f.add(leaf);
-    top.add(f);
-  }
-  for (let i = 0; i < 3; i++) { const c = mesh(new THREE.IcosahedronGeometry(0.17 * s, 0), 0x5A3E24); c.position.set(Math.cos(i * 2.1) * 0.25 * s, -0.2 * s, Math.sin(i * 2.1) * 0.25 * s); top.add(c); }
-  return shadow(g);
-}
-function umbrella(col) {
-  const g = new THREE.Group();
-  const p = mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 5), 0xF2F2F2); p.position.y = 1.2; p.rotation.z = 0.12; g.add(p);
-  const c = mesh(new THREE.ConeGeometry(1.5, 0.55, 8), col); c.position.set(-0.14, 2.45, 0); g.add(c);
-  const t = mesh(new THREE.BoxGeometry(0.9, 0.04, 1.8), col === 0xE5383B ? 0x2F86F0 : 0xFFC21A); t.position.set(1.1, 0.05, 0.3); g.add(t);
-  return shadow(g);
-}
-function hut(s) {
-  const g = new THREE.Group();
-  for (const [x, z] of [[-1.6, -1.6], [1.6, -1.6], [-1.6, 1.6], [1.6, 1.6]]) { const p = mesh(new THREE.CylinderGeometry(0.12 * s, 0.14 * s, 2.4 * s, 5), 0x8A6A45); p.position.set(x * s, 1.2 * s, z * s); g.add(p); }
-  const roof = mesh(new THREE.ConeGeometry(2.9 * s, 1.8 * s, 4), 0xD9B36A); roof.rotation.y = Math.PI / 4; roof.position.y = 3.2 * s; g.add(roof);
-  const bar = mesh(new THREE.BoxGeometry(3 * s, 1 * s, 0.6 * s), 0xA87C4F); bar.position.set(0, 0.5 * s, 1.3 * s); g.add(bar);
-  return shadow(g);
-}
-function surfboard(col) {
-  const g = new THREE.Group();
-  const b = mesh(new THREE.CapsuleGeometry(0.28, 1.6, 3, 8), col); b.scale.z = 0.25; b.position.y = 1.0; b.rotation.z = 0.15; g.add(b);
-  return shadow(g);
-}
-function shell(col) {
-  const m = mesh(new THREE.ConeGeometry(0.25, 0.2, 5), col); m.position.y = 0.1; return m;
-}
-// Totem en bois (obstacle sur la piste de la plage)
-export function tiki(s = 1) {
-  const g = new THREE.Group();
-  const cols = [0x8A5A30, 0x7A4E28, 0x9C6838];
-  for (let i = 0; i < 3; i++) {
-    const b = mesh(new THREE.BoxGeometry(1.25 * s, 1.15 * s, 1.15 * s), cols[i]); b.position.y = (0.6 + i * 1.2) * s; g.add(b);
-    for (const x of [-0.28, 0.28]) { const e = mesh(new THREE.BoxGeometry(0.28 * s, 0.22 * s, 0.08), 0xF4EADB); e.position.set(x * s, (0.85 + i * 1.2) * s, 0.6 * s); g.add(e); }
-    const mo = mesh(new THREE.BoxGeometry(0.7 * s, 0.18 * s, 0.08), 0x2B1A0E); mo.position.set(0, (0.4 + i * 1.2) * s, 0.6 * s); g.add(mo);
-  }
-  const top = mesh(new THREE.ConeGeometry(0.9 * s, 0.6 * s, 4), 0x4FB247); top.rotation.y = Math.PI / 4; top.position.y = 3.9 * s; g.add(top);
-  return shadow(g);
-}
-function beachBall(s = 1) {
-  const g = new THREE.Group();
-  const cols = [0xE5383B, 0xFFFFFF, 0x2F86F0, 0xFFC21A];
-  for (let i = 0; i < 4; i++) { const p = mesh(new THREE.SphereGeometry(0.55 * s, 8, 6, i * Math.PI / 2, Math.PI / 2), cols[i], { flat: false }); p.position.y = 0.55 * s; g.add(p); }
-  return shadow(g);
-}
-
-// ---------- Savane ----------
-function acacia(s) {
-  const g = new THREE.Group();
-  const t = mesh(new THREE.CylinderGeometry(0.14 * s, 0.24 * s, 2.6 * s, 5), 0x6B4A2B); t.position.y = 1.3 * s; g.add(t);
-  for (const sd of [-1, 1]) { const b = mesh(new THREE.CylinderGeometry(0.08 * s, 0.12 * s, 1.8 * s, 5), 0x6B4A2B); b.position.set(sd * 0.55 * s, 3 * s, 0); b.rotation.z = -sd * 0.7; g.add(b); }
-  const c = mesh(new THREE.CylinderGeometry(2.6 * s, 2.1 * s, 0.6 * s, 7), 0x6E8B3D); c.position.y = 3.7 * s; g.add(c);
-  const c2 = mesh(new THREE.CylinderGeometry(1.6 * s, 1.5 * s, 0.4 * s, 7), 0x7D9A45); c2.position.set(0.5 * s, 4.1 * s, 0.3 * s); g.add(c2);
-  return shadow(g);
-}
-function baobab(s) {
-  const g = new THREE.Group();
-  const t = mesh(new THREE.CylinderGeometry(0.9 * s, 1.4 * s, 4.2 * s, 7), 0x9C8670); t.position.y = 2.1 * s; g.add(t);
-  for (let i = 0; i < 5; i++) { const a = i * 1.26, b = mesh(new THREE.CylinderGeometry(0.1 * s, 0.25 * s, 1.6 * s, 5), 0x8A7560); b.position.set(Math.cos(a) * 0.8 * s, 4.6 * s, Math.sin(a) * 0.8 * s); b.rotation.set(Math.sin(a) * 0.6, 0, -Math.cos(a) * 0.6); g.add(b); }
-  for (let i = 0; i < 3; i++) { const l = mesh(new THREE.IcosahedronGeometry(0.8 * s, 0), 0x7D9A45); l.scale.y = 0.6; l.position.set(Math.cos(i * 2.1) * 1.4 * s, 5.4 * s, Math.sin(i * 2.1) * 1.4 * s); g.add(l); }
-  return shadow(g);
-}
-// Termitière (décor, ou obstacle sur la piste de la savane)
-export function termite(s = 1) {
-  const g = new THREE.Group();
-  const a = mesh(new THREE.ConeGeometry(1.15 * s, 3.9 * s, 7), 0xB5603A); a.position.y = 1.95 * s; g.add(a);
-  const b = mesh(new THREE.ConeGeometry(0.5 * s, 1.8 * s, 6), 0xA65434); b.position.set(0.7 * s, 0.9 * s, 0.3 * s); g.add(b);
-  const c = mesh(new THREE.ConeGeometry(0.4 * s, 1.3 * s, 6), 0xC2704A); c.position.set(-0.6 * s, 0.65 * s, -0.4 * s); g.add(c);
-  return shadow(g);
-}
-function giraffe(s) {
-  const g = new THREE.Group(), y = 0xE3B04B, sp = 0x9C5A2A;
-  const body = mesh(new THREE.BoxGeometry(1.8 * s, 1 * s, 0.8 * s), y); body.position.y = 2.1 * s; g.add(body);
-  const neck = mesh(new THREE.BoxGeometry(0.4 * s, 2.4 * s, 0.4 * s), y); neck.position.set(0.85 * s, 3.4 * s, 0); neck.rotation.z = -0.35; g.add(neck);
-  const head = mesh(new THREE.BoxGeometry(0.8 * s, 0.4 * s, 0.4 * s), y); head.position.set(1.4 * s, 4.6 * s, 0); g.add(head);
-  for (const [x, z] of [[-0.7, -0.3], [-0.7, 0.3], [0.7, -0.3], [0.7, 0.3]]) { const l = mesh(new THREE.BoxGeometry(0.2 * s, 1.7 * s, 0.2 * s), y); l.position.set(x * s, 0.85 * s, z * s); g.add(l); }
-  for (const [x, yy, z] of [[-0.5, 2.3, 0.41], [0.2, 2.0, 0.41], [0.5, 2.35, -0.41], [-0.2, 2.1, -0.41]]) { const d = mesh(new THREE.BoxGeometry(0.35 * s, 0.3 * s, 0.04), sp); d.position.set(x * s, yy * s, z * s); g.add(d); }
-  return shadow(g);
-}
-function tallGrass(n, col) {
-  const g = new THREE.Group();
-  for (let i = 0; i < n; i++) { const c = mesh(new THREE.ConeGeometry(0.12, 0.9 + (i % 3) * 0.25, 4), col); c.position.set((i % 4 - 1.5) * 0.25, 0.45, (Math.floor(i / 4) - 0.5) * 0.3); c.rotation.z = (i % 3 - 1) * 0.15; g.add(c); }
-  return g;
-}
-
-// ---------- Définition des mondes ----------
-// sky : dégradé du ciel (haut, milieu, horizon) · fog : brume lointaine · hemi / sun : lumières
-// ground(c, zone, x, z, n, stripe, patch) : couleur du terrain par zone ('tarmac', 'track', 'shoulder', 'field')
-// ridge : couleurs des collines des bifurcations · grass / rock : sommet herbeux et roche des passages
-// decor(ctx) : décor des bas-côtés d'un tronçon (générateur, rend la main régulièrement)
-// statue() : obstacle « statue » propre au monde · breakable() : objet cassable (en plus des caisses)
+// Sol : couleurs en hexadécimal ; pattern : motif de la piste ; field : champs au-delà des talus
 export const THEMES = [
-  {
-    name: 'Prairie fleurie',
-    sky: ['#6DB8EC', '#B4E0F7', '#E4F5FF'], fog: 0xCFEAF7, hemi: [0xDDF1FF, 0x6A8A4A], sun: [0xFFF4DE, 2.6],
-    ground(c, zone, x, z, n, stripe, patch) {
-      if (zone === 'tarmac') set(c, [0.26, 0.27, 0.31], n);
-      else if (zone === 'track') set(c, patch > 1.6 ? [0.88, 0.77, 0.55] : [0.42 + stripe, 0.70 + stripe, 0.24 + stripe * 0.5], n);
-      else if (zone === 'shoulder') set(c, [0.40, 0.70, 0.30], n);
-      else set(c, [0.30, 0.60, 0.24], n);
-    },
-    ridge: { top: [0.95, 0.96, 0.98], rock: [0.55, 0.57, 0.60], base: [0.36, 0.64, 0.27] },
-    grass: [0.36, 0.62, 0.26], rock: [0.52, 0.53, 0.55],
-    tufts: [0x3F8F2E, 0x56A63A, 0x2F7A2E],
-    ridgeProp: (r) => r() < 0.67 ? A.pine(1.2 + r() * 0.8) : A.rock(0.6 + r() * 0.7),
-    statue: () => A.statue(1), breakable: () => A.hayBlock(1),
-    *decor({ put, r, L, z0, z1, i, deco }) {
-      for (let k = 0; k < 90; k++) {
-        const side = r() > 0.5 ? 1 : -1, x = side * (L.opt.half + 3 + Math.pow(r(), 2.2) * 65), z = z0 - r() * 150;
-        const t = r(); let o;
-        if (t < 0.42) o = A.tree(1.2 + r() * 1.4, k % 4); else if (t < 0.66) o = A.pine(1.3 + r() * 1.2); else if (t < 0.82) o = A.rock(0.6 + r() * 1.4); else o = A.hay(1);
-        put(o, x, z, -0.1);
-        if (k % 30 === 29) yield;
-      }
-      for (let k = 0; k < 36; k++) { const side = r() > 0.5 ? 1 : -1; put(A.bush(0.8 + r() * 0.8, k % 4), side * (L.opt.half + 0.8 + r() * 3), z0 - r() * 150); }
-      for (let zz = z0 - 4; zz > z1 + 30; zz -= 34) for (const side of [-1, 1]) if (r() < 0.65) put(A.fence(24), side * (L.opt.half + 1.6), zz, 0, 0);
-      for (let k = 0; k < 4; k++) { const side = r() > 0.5 ? 1 : -1; const x0 = side * (L.opt.half + 10 + r() * 18), zc = z0 - r() * 150; for (let q = 0; q < 2 + Math.floor(r() * 3); q++) put(A.cow(1), x0 + (r() - 0.5) * 8, zc + (r() - 0.5) * 8); }
-      if (i % 2 === 0) { const side = r() > 0.5 ? 1 : -1; put(A.barn(1), side * (L.opt.half + 22 + r() * 14), z0 - r() * 150, 0, side > 0 ? -Math.PI / 2 : Math.PI / 2); }
-      for (let k = 0; k < 10; k++) { const side = r() > 0.5 ? 1 : -1; const f = A.flowers(10, 4, 0, [0xF48FB1, 0xFFE27A, 0xFFFFFF, 0xB794F4][k % 4]); f.traverse(o => { o.castShadow = false; }); put(f, side * (L.opt.half + 3 + r() * 20), z0 - r() * 150, 0.1); }
-      if (i % 3 === 1) { const wm = A.windmill(1.4); const x = (r() > 0.5 ? 1 : -1) * (L.opt.half + 26 + r() * 20), z = z0 - r() * 150; wm.position.set(x, L.ground(x, z, 1).h - 0.4, z); wm.rotation.y = r() * 6; deco.add(wm); }
-    },
-  },
-  {
-    name: 'Champs de lavande',
-    sky: ['#7FA8E8', '#D9C8F0', '#FCE6D6'], fog: 0xEADCEF, hemi: [0xF2E6FF, 0x7A6A8A], sun: [0xFFE6C4, 2.6],
-    ground(c, zone, x, z, n, stripe, patch) {
-      if (zone === 'tarmac') set(c, [0.34, 0.31, 0.31], n);
-      else if (zone === 'track') set(c, patch > 1.5 ? [0.86, 0.78, 0.60] : [0.52 + stripe, 0.66 + stripe, 0.30 + stripe * 0.5], n);
-      else if (zone === 'shoulder') set(c, [0.56, 0.62, 0.34], n);
-      else set(c, Math.floor(Math.abs(x) / 2.2) % 2 ? [0.55, 0.44, 0.76] : [0.46, 0.54, 0.30], n); // rangées violettes et vertes
-    },
-    ridge: { top: [0.93, 0.90, 0.84], rock: [0.66, 0.62, 0.56], base: [0.50, 0.60, 0.30] },
-    grass: [0.50, 0.60, 0.30], rock: [0.70, 0.66, 0.58],
-    tufts: [0x6F8F3A, 0x8A6AC0, 0x7A9A44],
-    ridgeProp: (r) => r() < 0.6 ? cypress(0.8 + r() * 0.4) : A.rock(0.6 + r() * 0.7),
-    statue: () => A.statue(1), breakable: () => A.hayBlock(1),
-    *decor({ put, r, L, z0, z1, i }) {
-      // Champs de lavande en rangées, de chaque côté
-      for (let k = 0; k < 4; k++) {
-        const side = k % 2 ? 1 : -1, x0 = side * (L.opt.half + 5 + r() * 28), zs = z0 - r() * 110, rows = 4 + Math.floor(r() * 4), segs = 7 + Math.floor(r() * 6);
-        for (let a = 0; a < rows; a++) for (let b = 0; b < segs; b++) put(lavender((a + b) % 3 === 1), x0 + side * a * 2.2, zs - b * 3, -0.05, 0);
-      }
-      yield;
-      for (let k = 0; k < 60; k++) {
-        const side = r() > 0.5 ? 1 : -1, x = side * (L.opt.half + 4 + Math.pow(r(), 1.8) * 65), z = z0 - r() * 150, t = r();
-        put(t < 0.45 ? cypress(0.9 + r() * 0.6) : t < 0.85 ? olive(1 + r() * 0.5, k % 3) : A.rock(0.6 + r() * 1.2), x, z, -0.1);
-        if (k % 30 === 29) yield;
-      }
-      for (let k = 0; k < 30; k++) { const side = r() > 0.5 ? 1 : -1; put(blobBush(0.7 + r() * 0.6, [0x8A68C4, 0x9A7AD0, 0x6F8F3A]), side * (L.opt.half + 0.8 + r() * 3), z0 - r() * 150); }
-      for (let zz = z0 - 4; zz > z1 + 30; zz -= 34) for (const side of [-1, 1]) if (r() < 0.55) put(stoneWall(21), side * (L.opt.half + 1.6), zz, 0, 0);
-      if (i % 2 === 0) { const side = r() > 0.5 ? 1 : -1; put(mas(1), side * (L.opt.half + 24 + r() * 14), z0 - r() * 150, 0, side > 0 ? -Math.PI / 2 : Math.PI / 2); }
-      for (let k = 0; k < 3; k++) { const side = r() > 0.5 ? 1 : -1; put(beehives(2 + Math.floor(r() * 3)), side * (L.opt.half + 6 + r() * 14), z0 - r() * 150); }
-      for (let k = 0; k < 8; k++) { const side = r() > 0.5 ? 1 : -1; const f = A.flowers(10, 4, 0, [0xFFE27A, 0xFFFFFF, 0xB794F4][k % 3]); f.traverse(o => { o.castShadow = false; }); put(f, side * (L.opt.half + 3 + r() * 20), z0 - r() * 150, 0.1); }
-    },
-  },
-  {
-    name: "Forêt d'automne",
-    sky: ['#7AA9D6', '#E8D3A8', '#FBE9C9'], fog: 0xEBD9B8, hemi: [0xFFEBD0, 0x7A5A2A], sun: [0xFFD9A0, 2.5],
-    ground(c, zone, x, z, n, stripe, patch) {
-      if (zone === 'tarmac') set(c, [0.25, 0.24, 0.27], n);
-      else if (zone === 'track') set(c, patch > 1.4 ? [0.86, 0.50, 0.20] : [0.56 + stripe, 0.42 + stripe, 0.20 + stripe * 0.4], n);
-      else if (zone === 'shoulder') set(c, [0.62, 0.40, 0.18], n);
-      else set(c, patch > 0.8 ? [0.74, 0.40, 0.16] : patch < -1 ? [0.40, 0.46, 0.20] : [0.52, 0.36, 0.17], n);
-    },
-    ridge: { top: [0.70, 0.40, 0.17], rock: [0.50, 0.47, 0.44], base: [0.58, 0.40, 0.18] },
-    grass: [0.66, 0.40, 0.17], rock: [0.50, 0.48, 0.46],
-    tufts: [0xC9772A, 0x8A6A2A, 0xE0A040],
-    ridgeProp: (r) => r() < 0.5 ? leafyTree(1 + r() * 0.5, AUTUMN, 0x6B4A2B, Math.floor(r() * 5)) : autumnPine(1.1 + r() * 0.6),
-    statue: () => mushroom(1), breakable: () => pumpkin(1.3),
-    *decor({ put, r, L, z0, z1 }) {
-      // Forêt dense : beaucoup d'arbres, de plus en plus serrés en s'éloignant de la piste
-      for (let k = 0; k < 120; k++) {
-        const side = r() > 0.5 ? 1 : -1, x = side * (L.opt.half + 3 + Math.pow(r(), 1.6) * 65), z = z0 - r() * 150, t = r();
-        put(t < 0.5 ? leafyTree(1.3 + r() * 1.4, AUTUMN, 0x6B4A2B, k % 5) : t < 0.72 ? birch(1 + r() * 0.5, k % 3) : t < 0.92 ? autumnPine(1.3 + r() * 1.2) : A.rock(0.6 + r() * 1.2), x, z, -0.1);
-        if (k % 30 === 29) yield;
-      }
-      for (let k = 0; k < 8; k++) { const side = r() > 0.5 ? 1 : -1; put(log(3 + r() * 3), side * (L.opt.half + 4 + r() * 22), z0 - r() * 150, 0, r() * 6); }
-      for (let k = 0; k < 6; k++) { const side = r() > 0.5 ? 1 : -1; put(mushroom(0.6 + r() * 0.9), side * (L.opt.half + 5 + r() * 25), z0 - r() * 150); }
-      for (let k = 0; k < 30; k++) { const side = r() > 0.5 ? 1 : -1; put(blobBush(0.7 + r() * 0.7, AUTUMN, k % 5), side * (L.opt.half + 0.8 + r() * 3), z0 - r() * 150); }
-      for (let k = 0; k < 16; k++) { const side = r() > 0.5 ? 1 : -1; put(leafPile(1 + r() * 0.6, k % 5), side * (L.opt.half + 1 + r() * 25), z0 - r() * 150, 0.05); }
-      for (let k = 0; k < 4; k++) { const side = r() > 0.5 ? 1 : -1; put(pumpkin(0.8 + r() * 0.5), side * (L.opt.half + 3 + r() * 10), z0 - r() * 150); }
-      for (let zz = z0 - 4; zz > z1 + 30; zz -= 34) for (const side of [-1, 1]) if (r() < 0.4) put(A.fence(24), side * (L.opt.half + 1.6), zz, 0, 0);
-    },
-  },
-  {
-    name: 'Plage tropicale',
-    sky: ['#2E9BE6', '#7FD3F5', '#D8F6FF'], fog: 0xBFEAF7, hemi: [0xE0F6FF, 0xC8B080], sun: [0xFFF8E8, 2.7],
-    ground(c, zone, x, z, n, stripe, patch) {
-      // Zones rapides : pontons en planches lisses
-      if (zone === 'tarmac') set(c, Math.floor(z / 0.9) % 2 ? [0.62, 0.43, 0.25] : [0.54, 0.36, 0.20], n);
-      else if (zone === 'track') set(c, patch > 1.5 ? [0.84, 0.74, 0.54] : [0.94 + stripe * 0.5, 0.85 + stripe * 0.5, 0.63 + stripe * 0.3], n);
-      else if (zone === 'shoulder') set(c, [0.90, 0.80, 0.58], n);
-      else set(c, patch > 1.3 ? [0.50, 0.70, 0.34] : [0.91, 0.81, 0.58], n);
-    },
-    ridge: { top: [0.95, 0.88, 0.70], rock: [0.70, 0.60, 0.46], base: [0.90, 0.80, 0.58] },
-    grass: [0.46, 0.70, 0.32], rock: [0.72, 0.62, 0.48],
-    tufts: [0x5FA83A, 0x7FBF4A, 0xC9B074],
-    rocks: [0xC8B496, 0xB09A7A, 0xD6C6A8],
-    ridgeProp: (r) => r() < 0.7 ? palm(0.8 + r() * 0.3, 0.06 + r() * 0.06) : A.rock(0.6 + r() * 0.7, [0xC8B496, 0xB09A7A]),
-    statue: () => tiki(1), breakable: () => beachBall(1.3),
-    *decor({ put, r, L, z0, z1, i, pond: placePond }) {
-      for (let k = 0; k < 55; k++) {
-        const side = r() > 0.5 ? 1 : -1, x = side * (L.opt.half + 3 + Math.pow(r(), 1.7) * 60), z = z0 - r() * 150, t = r();
-        put(t < 0.75 ? palm(1 + r() * 0.5, 0.05 + r() * 0.1) : A.rock(0.6 + r() * 1.2, [0xC8B496, 0xB09A7A, 0xD6C6A8]), x, z, -0.1);
-        if (k % 30 === 29) yield;
-      }
-      const UMB = [0xE5383B, 0x2F86F0, 0xFFC21A, 0x16A34A];
-      for (let k = 0; k < 10; k++) { const side = r() > 0.5 ? 1 : -1; put(umbrella(UMB[k % 4]), side * (L.opt.half + 3 + r() * 14), z0 - r() * 150); }
-      for (let k = 0; k < 4; k++) { const side = r() > 0.5 ? 1 : -1; put(surfboard([0xFF6B6F, 0x34E0FF, 0xFFD23F][k % 3]), side * (L.opt.half + 2.5 + r() * 6), z0 - r() * 150); }
-      for (let k = 0; k < 24; k++) { const side = r() > 0.5 ? 1 : -1; put(shell([0xF4C2C2, 0xFFFFFF, 0xF2A65A][k % 3]), side * (L.opt.half + 0.6 + r() * 8), z0 - r() * 150); }
-      for (let k = 0; k < 20; k++) { const side = r() > 0.5 ? 1 : -1; put(blobBush(0.6 + r() * 0.5, [0x4FB247, 0x3E9A3A, 0x7FBF4A], k % 3), side * (L.opt.half + 1.5 + r() * 4), z0 - r() * 150); }
-      if (i % 2 === 0) { const side = r() > 0.5 ? 1 : -1; put(hut(1), side * (L.opt.half + 14 + r() * 12), z0 - r() * 150); }
-      yield;
-      for (let k = 0; k < 3; k++) { const side = r() > 0.5 ? 1 : -1; placePond(2.5 + r() * 2.5, 0x3FC6E0, 0xE8DAB0, side * (L.opt.half + 10 + r() * 20), z0 - r() * 150); }
-      for (let zz = z0 - 4; zz > z1 + 30; zz -= 34) for (const side of [-1, 1]) if (r() < 0.35) put(A.fence(24), side * (L.opt.half + 1.6), zz, 0, 0);
-    },
-  },
-  {
-    name: 'Savane',
-    sky: ['#4F9BD9', '#F2D49A', '#FFE9C2'], fog: 0xF1DDB2, hemi: [0xFFF0D8, 0x9A7A40], sun: [0xFFE2B0, 2.8],
-    ground(c, zone, x, z, n, stripe, patch) {
-      // Zones rapides : piste en terre battue rouge
-      if (zone === 'tarmac') set(c, [0.56, 0.30, 0.18], n);
-      else if (zone === 'track') set(c, patch > 1.5 ? [0.74, 0.42, 0.24] : [0.80 + stripe * 0.6, 0.68 + stripe * 0.6, 0.36 + stripe * 0.3], n);
-      else if (zone === 'shoulder') set(c, [0.74, 0.62, 0.32], n);
-      else set(c, patch > 1.2 ? [0.70, 0.44, 0.25] : patch < -1.2 ? [0.56, 0.60, 0.30] : [0.80, 0.68, 0.36], n);
-    },
-    ridge: { top: [0.86, 0.66, 0.42], rock: [0.66, 0.42, 0.28], base: [0.78, 0.66, 0.34] },
-    grass: [0.76, 0.64, 0.32], rock: [0.70, 0.48, 0.34],
-    tufts: [0xC9A55A, 0xB8944A, 0x9AA048],
-    rocks: [0xB07A55, 0x9C6A48, 0xC28E66],
-    ridgeProp: (r) => r() < 0.5 ? acacia(0.7 + r() * 0.3) : A.rock(0.6 + r() * 0.7, [0xB07A55, 0x9C6A48]),
-    statue: () => termite(1), breakable: () => A.hayBlock(1),
-    *decor({ put, r, L, z0, z1, i, pond: placePond }) {
-      for (let k = 0; k < 40; k++) {
-        const side = r() > 0.5 ? 1 : -1, x = side * (L.opt.half + 4 + Math.pow(r(), 1.5) * 65), z = z0 - r() * 150, t = r();
-        put(t < 0.55 ? acacia(0.9 + r() * 0.6) : t < 0.7 ? baobab(0.9 + r() * 0.4) : t < 0.85 ? termite(0.4 + r() * 0.5) : A.rock(0.6 + r() * 1.2, [0xB07A55, 0x9C6A48, 0xC28E66]), x, z, -0.1);
-        if (k % 20 === 19) yield;
-      }
-      for (let k = 0; k < 50; k++) { const side = r() > 0.5 ? 1 : -1; put(tallGrass(8, [0xD9B860, 0xC9A55A, 0xB8944A][k % 3]), side * (L.opt.half + 0.8 + Math.pow(r(), 1.5) * 30), z0 - r() * 150); }
-      if (i % 2 === 1) { const side = r() > 0.5 ? 1 : -1, x0 = side * (L.opt.half + 14 + r() * 16), zc = z0 - r() * 150; for (let q = 0; q < 1 + Math.floor(r() * 3); q++) put(giraffe(0.9 + r() * 0.25), x0 + (r() - 0.5) * 10, zc + (r() - 0.5) * 10); }
-      yield;
-      if (i % 2 === 0) { const side = r() > 0.5 ? 1 : -1; placePond(3 + r() * 2.5, 0x4FA3C7, 0x8A6A44, side * (L.opt.half + 12 + r() * 18), z0 - r() * 150); }
-      for (let zz = z0 - 4; zz > z1 + 30; zz -= 34) for (const side of [-1, 1]) if (r() < 0.3) put(A.fence(24), side * (L.opt.half + 1.6), zz, 0, 0);
-    },
-  },
+  { key: 'prairie', breakable: 'hayBlock', tex: 'grass', name: 'Prairie fleurie', sky: ['#6DB8EC', '#B4E0F7', '#E4F5FF'], fog: 0xCFEAF7, hemi: [0xDDF1FF, 0x6A8A4A, 0.75], sun: [0xFFF4DE, 2.6],
+    ground: { track: 0x6BB33D, trackAlt: 0x7DC24A, pattern: 'stripes', patch: 0xE0C48C, verge: 0x66B34D, field: 0x4D993D, fieldAlt: 0x5AA848 },
+    fast: { name: 'goudron', color: 0x42454F }, slow: null, border: 'fence', tufts: [0x3F8F2E, 0x56A63A, 0x2F7A2E], flowers: true, cows: true,
+    far: [[42, 'tree'], [24, 'pine'], [16, 'rock'], [18, 'hay']], near: [[1, 'bush']], landmark: ['barn', 'windmill'], rock: null, statue: 'statue', arch: true },
+  { key: 'lavande', breakable: 'beehive', tex: 'gravel', name: 'Champs de lavande', sky: ['#7FB5E8', '#C6DDF2', '#F4ECF6'], fog: 0xE2DCEF, hemi: [0xF0E8FF, 0x7A6A8A, 0.8], sun: [0xFFF0DA, 2.5],
+    ground: { track: 0xC9B48A, trackAlt: 0xBFA97E, pattern: 'noise', patch: 0xD8C69E, verge: 0x8AA65A, field: 0x7E6CB8, fieldAlt: 0x6E8E4A, fieldPattern: 'rows' },
+    fast: { name: 'chemin dallé', color: 0xA89A86 }, slow: { name: 'terre meuble', color: 0x9A7A56 }, border: 'stonewall', tufts: [0x9B7FD4, 0x6E8E4A], flowers: false,
+    far: [[40, 'lavenderRow'], [20, 'olive'], [14, 'cypress'], [6, 'beehive']], near: [[1, 'greenBush']], landmark: ['stoneHouse'], rock: 0xC9B896, statue: 'stoneLantern', arch: true },
+  { key: 'automne', breakable: 'pumpkin', tex: 'leaves', name: "Forêt d'automne", sky: ['#8AAFD6', '#D8D2C2', '#F2E2C8'], fog: 0xE6D6BC, hemi: [0xFFE8C8, 0x7A5A3A, 0.8], sun: [0xFFD9A8, 2.4],
+    ground: { track: 0x8E7A4A, trackAlt: 0xA0703A, pattern: 'leaves', patch: 0xC9682A, verge: 0x9A7A3A, field: 0x7A6A3A, fieldAlt: 0xB8661F },
+    fast: { name: 'chemin sec', color: 0x7A6A55 }, slow: { name: 'boue', color: 0x5A4430 }, border: 'fence', tufts: [0xC9682A, 0xEAB02A, 0x8A6A2A], flowers: false,
+    far: [[45, 'autumnTree'], [20, 'pine'], [10, 'mushroom'], [12, 'rock']], near: [[1, 'autumnBush']], landmark: ['mushroom'], rock: 0x8E8A80, statue: 'deadTree', arch: true },
+  { key: 'plage', breakable: 'beachBall', tex: 'sand', name: 'Plage tropicale', sky: ['#3FA9F5', '#8FD3FA', '#E8F8FF'], fog: 0xCDEFFB, hemi: [0xE8F8FF, 0xC8B080, 0.85], sun: [0xFFF6E0, 2.8], relief: 1.2, bank: 0.25,
+    ground: { track: 0xEBD9A6, trackAlt: 0xE2CC92, pattern: 'dunes', patch: 0xF4E6BE, verge: 0xE8D49E, field: 0x2FA6C8, fieldAlt: 0x48C0DA, fieldPattern: 'water' },
+    fast: { name: 'sable mouillé', color: 0xC9B07A }, slow: { name: 'sable mou', color: 0xF4E2B0 }, border: 'rope', tufts: [0x8EB850, 0xB8C870], flowers: false,
+    far: [[40, 'palm'], [12, 'beachHut'], [16, 'parasol'], [12, 'sandRock']], near: [[1, 'palm']], landmark: ['beachHut'], rock: 0xD8C08A, statue: 'tiki', arch: false },
+  { key: 'savane', breakable: 'hayBlock', tex: 'dirt', name: 'Savane', sky: ['#F2B65E', '#F6D69A', '#FBEFD2'], fog: 0xF2DDB2, hemi: [0xFFF0D0, 0x9A7A40, 0.85], sun: [0xFFDDA0, 2.7],
+    ground: { track: 0xB5703F, trackAlt: 0xA8653A, pattern: 'ruts', patch: 0xC48250, verge: 0xC9B060, field: 0xD8C070, fieldAlt: 0xC2A85A },
+    fast: { name: 'terre battue', color: 0x8E5A34 }, slow: { name: 'herbes hautes', color: 0xD9C878 }, border: 'none', tufts: [0xD8C070, 0xB8A050], flowers: false,
+    far: [[30, 'acacia'], [14, 'baobab'], [18, 'termiteMound'], [14, 'dryBush'], [6, 'giraffe']], near: [[1, 'dryBush']], landmark: ['baobab'], rock: 0xB09070, statue: 'termiteMound', arch: false },
+  { key: 'canyon', breakable: 'tumbleweed', tex: 'sand', name: 'Canyons du désert', sky: ['#4A9BE0', '#A6D0F0', '#F2E0C8'], fog: 0xF0D8BC, hemi: [0xFFE8D0, 0xA8603A, 0.8], sun: [0xFFE8C8, 2.8], bank: 2.2,
+    ground: { track: 0xD08A5A, trackAlt: 0xC47A4A, pattern: 'dunes', patch: 0xE0A070, verge: 0xC9683A, field: 0xB8573A, fieldAlt: 0xA8492F },
+    fast: { name: 'roche lisse', color: 0x9A5038 }, slow: { name: 'sable', color: 0xE8C08A }, border: 'none', tufts: [0x9AA050, 0x7A8A40], flowers: false,
+    far: [[30, 'cactus'], [14, 'mesa'], [24, 'redRock'], [10, 'tumbleweed']], near: [[1, 'cactus']], landmark: ['mesa'], rock: 0xB8573A, statue: 'cactus', arch: false,
+    passage: { body: 0xC97A4A, top: 0xD89A6A } },
+  { key: 'farwest', breakable: 'tumbleweed', tex: 'dirt', name: 'Ville fantôme du Far West', sky: ['#D9A066', '#EBC48E', '#F8E2BC'], fog: 0xEED2A8, hemi: [0xFFE2B8, 0x8A6A40, 0.8], sun: [0xFFD8A0, 2.6],
+    ground: { track: 0xB89468, trackAlt: 0xA8845A, pattern: 'ruts', patch: 0xC8A478, verge: 0xA88A5A, field: 0xC2A070, fieldAlt: 0xB09060 },
+    fast: { name: 'planches', color: 0x7A5230 }, slow: { name: 'poussière', color: 0xD8BC8E }, border: 'fence', tufts: [0x9A8A50, 0xB0A060], flowers: false,
+    far: [[24, 'cactus'], [12, 'saloon'], [10, 'waterTower'], [20, 'tumbleweed'], [10, 'deadTree']], near: [[1, 'tumbleweed']], landmark: ['saloon', 'waterTower'], rock: 0xA88A6A, statue: 'cactus', arch: false },
+  { key: 'jungle', breakable: 'pumpkin', tex: 'mud', name: 'Jungle', sky: ['#5AA88A', '#9CCFB0', '#DDF0E2'], fog: 0xB8DCC6, fogNear: 60, fogFar: 230, hemi: [0xD8FFE0, 0x2A5A2A, 0.8], sun: [0xFFF0C8, 2.3],
+    ground: { track: 0x5E7A34, trackAlt: 0x6E8A3A, pattern: 'noise', patch: 0x7A5A34, verge: 0x3E7A2E, field: 0x2A6A2A, fieldAlt: 0x357A30 },
+    fast: { name: 'racines lisses', color: 0x6B5A40 }, slow: { name: 'boue', color: 0x5A4830 }, border: 'bamboo', tufts: [0x2A8034, 0x3E9A3A, 0x1F6B2A], flowers: true,
+    far: [[45, 'jungleTree'], [25, 'fern'], [12, 'bamboo'], [8, 'rock']], near: [[1, 'fern']], landmark: ['jungleTree'], rock: 0x6E7A60, statue: 'stoneHead', arch: false },
+  { key: 'azteque', breakable: 'pumpkin', tex: 'pavers', name: 'Temples aztèques', sky: ['#6FB8C8', '#B8DCD0', '#ECF2DC'], fog: 0xD2E4CC, hemi: [0xF0FFE8, 0x5A6A3A, 0.8], sun: [0xFFF0D0, 2.5],
+    ground: { track: 0xA8A68E, trackAlt: 0x96947C, pattern: 'pavers', patch: 0x7E9A4A, verge: 0x5E8A3A, field: 0x3E7A34, fieldAlt: 0x4A8A3A },
+    fast: { name: 'dalles polies', color: 0xC2C0A8 }, slow: { name: 'mousse', color: 0x5E7A3A }, border: 'rocks', tufts: [0x3E8A3A, 0x5EA040], flowers: false,
+    far: [[30, 'jungleTree'], [14, 'stoneHead'], [16, 'fern'], [10, 'rock']], near: [[1, 'fern']], landmark: ['stepPyramid'], rock: 0x9C9A84, statue: 'stoneHead', arch: false,
+    passage: { body: 0xA8A68E, top: 0x6E8A4A } },
+  { key: 'bayou', breakable: 'pumpkin', tex: 'mud', name: 'Bayou brumeux', sky: ['#7E9A8A', '#A8BCA8', '#C8D4C0'], fog: 0xB0C0A8, fogNear: 45, fogFar: 200, hemi: [0xD8E8D0, 0x3A4A30, 0.75], sun: [0xE8F0D0, 1.9], bank: 0.25,
+    ground: { track: 0x5E6A3A, trackAlt: 0x6A7444, pattern: 'noise', patch: 0x4A5A3A, verge: 0x4E6234, field: 0x34503E, fieldAlt: 0x3E5A44, fieldPattern: 'water' },
+    fast: { name: 'pontons lisses', color: 0x7A6A55 }, slow: { name: 'marécage', color: 0x3A4A36 }, border: 'none', tufts: [0x6E7F3A, 0x8A9A50], flowers: false,
+    far: [[40, 'cypressMoss'], [24, 'reeds'], [8, 'stiltCabin'], [10, 'deadTree']], near: [[1, 'reeds']], landmark: ['stiltCabin'], rock: 0x6A6A5A, statue: 'deadTree', arch: false },
+  { key: 'japon', breakable: 'stoneLantern', tex: 'gravel', name: 'Japon des cerisiers', sky: ['#9EC8F0', '#E4D8EE', '#FBEFF4'], fog: 0xF2E2EC, hemi: [0xFFF0F8, 0x7A8A6A, 0.85], sun: [0xFFF2E8, 2.5],
+    ground: { track: 0xCFC6B4, trackAlt: 0xC2B8A4, pattern: 'gravel', patch: 0xF4C6D4, verge: 0x7AA45A, field: 0x6E9A54, fieldAlt: 0xE8B8C8 },
+    fast: { name: 'pierres plates', color: 0x9A968E }, slow: { name: 'gravier profond', color: 0xDCD4C4 }, border: 'bamboo', tufts: [0xF7B6C8, 0x6E9A54], flowers: false,
+    far: [[40, 'cherryTree'], [14, 'bamboo'], [12, 'stoneLantern'], [10, 'pine']], near: [[1, 'pinkBush']], landmark: ['pagoda', 'torii'], rock: 0x9A9A92, statue: 'stoneLantern', arch: 'torii' },
+  { key: 'neon', breakable: 'trafficCone', tex: 'asphalt', name: 'Ville néon de nuit', sky: ['#0A0F2A', '#1C1F4A', '#3A2A5A'], fog: 0x1E1A3E, fogNear: 60, fogFar: 240, hemi: [0x6A6AC8, 0x1A1A2A, 0.55], sun: [0x8AA0FF, 0.9], exposure: 1.05,
+    ground: { track: 0x2E3038, trackAlt: 0x34363E, pattern: 'lanes', patch: 0x3A3C46, verge: 0x8E9098, field: 0x22242C, fieldAlt: 0x2A2C34 },
+    fast: { name: 'asphalte neuf', color: 0x1C1D22 }, slow: { name: 'chantier', color: 0x8A6A3A }, border: 'lamps', tufts: null, flowers: false,
+    far: [[50, 'skyscraper'], [20, 'neonSign'], [10, 'container']], near: [[1, 'streetLamp']], landmark: ['skyscraper'], rock: 0x6A6E78, statue: 'trafficCone', arch: 'neon', night: true },
+  { key: 'chantier', breakable: 'trafficCone', tex: 'concrete', name: 'Chantier géant', sky: ['#7FA8D0', '#C8D4DE', '#ECEEEA'], fog: 0xDADCD6, hemi: [0xEEF2F6, 0x7A6A50, 0.8], sun: [0xFFF4DE, 2.5],
+    ground: { track: 0x9A8A70, trackAlt: 0xA89880, pattern: 'slabs', patch: 0x7A6A54, verge: 0x8A7A60, field: 0x9A8A6A, fieldAlt: 0x8A7A5A },
+    fast: { name: 'dalle de béton', color: 0xB8B8B0 }, slow: { name: 'gravats', color: 0x6E6050 }, border: 'barrier', tufts: null, flowers: false,
+    far: [[16, 'crane'], [22, 'girders'], [20, 'pipes'], [20, 'container'], [12, 'trafficCone']], near: [[1, 'trafficCone']], landmark: ['crane'], rock: 0x8E8A84, statue: 'trafficCone', arch: true },
+  { key: 'banquise', breakable: 'snowman', tex: 'snow', name: 'Banquise', sky: ['#7EB8E8', '#C8E2F6', '#F4FAFF'], fog: 0xE2F0FA, hemi: [0xF0F8FF, 0xA8C0D8, 0.95], sun: [0xFFFFFF, 2.4],
+    ground: { track: 0xF2F6FA, trackAlt: 0xE6EEF6, pattern: 'noise', patch: 0xDCE8F4, verge: 0xEAF2F8, field: 0xF4F8FC, fieldAlt: 0xDCEAF6 },
+    fast: { name: 'glace', color: 0x9CCCEC }, slow: { name: 'neige poudreuse', color: 0xFFFFFF }, border: 'snowbank', tufts: null, flowers: false,
+    far: [[30, 'iceberg'], [24, 'snowPine'], [10, 'igloo'], [10, 'penguin']], near: [[1, 'snowPine']], landmark: ['igloo', 'iceberg'], rock: 0xCFE6F6, statue: 'iceberg', arch: false,
+    passage: { body: 0xDCEAF6, top: 0xFFFFFF } },
+  { key: 'volcan', breakable: 'lavaRock', tex: 'lava', name: 'Volcan', sky: ['#3A2A2A', '#7A4A3A', '#C8784A'], fog: 0x7A4A3A, fogNear: 55, fogFar: 230, hemi: [0xFFB080, 0x2A1A1A, 0.7], sun: [0xFFA060, 2.2],
+    ground: { track: 0x3A3434, trackAlt: 0x2E2A2A, pattern: 'lava', patch: 0xFF6A1F, verge: 0x2A2626, field: 0x241F1F, fieldAlt: 0x3A2A26 },
+    fast: { name: 'roche vitrifiée', color: 0x1A1818 }, slow: { name: 'cendres', color: 0x6E6460 }, border: 'rocks', tufts: null, flowers: false,
+    far: [[30, 'lavaRock'], [16, 'geyser'], [16, 'deadTree'], [20, 'blackRock']], near: [[1, 'blackRock']], landmark: ['volcano'], rock: 0x2B2727, statue: 'lavaRock', arch: false,
+    passage: { body: 0x3A3434, top: 0x5A4A44 } },
+  { key: 'marin', breakable: 'clam', tex: 'sand', name: 'Fonds marins', sky: ['#0A3A6A', '#1A6A9A', '#3A9AC0'], fog: 0x1E6A94, fogNear: 40, fogFar: 190, hemi: [0x8ADCFF, 0x1A3A5A, 0.85], sun: [0xA8E8FF, 1.8],
+    ground: { track: 0xCFC29A, trackAlt: 0xC2B48A, pattern: 'dunes', patch: 0xE0D4AE, verge: 0xB8A880, field: 0xA8987A, fieldAlt: 0x8A9A8A },
+    fast: { name: 'courant', color: 0x7AC8D8 }, slow: { name: 'vase', color: 0x6A6450 }, border: 'none', tufts: [0x3CA36A, 0x56B87A], flowers: false,
+    far: [[30, 'seaweed'], [26, 'coral'], [8, 'shipwreck'], [10, 'clam'], [10, 'blueRock']], near: [[1, 'coral']], landmark: ['shipwreck'], rock: 0x6E8AA8, statue: 'coral', arch: false, gravity: 0.8 },
+  { key: 'chambre', breakable: 'toyBall', tex: 'planks', name: "Chambre d'enfant géante", sky: ['#F6E6C8', '#FBF0DC', '#FFF8EC'], fog: 0xF6EAD4, hemi: [0xFFF6E8, 0xA88A6A, 0.9], sun: [0xFFF0DA, 2.2],
+    ground: { track: 0xC48A54, trackAlt: 0xB27A48, pattern: 'planks', patch: 0x5A8AD8, verge: 0xA8743E, field: 0xB88050, fieldAlt: 0xA87040 },
+    fast: { name: 'parquet ciré', color: 0xD89A60 }, slow: { name: 'tapis épais', color: 0xD85A6A }, border: 'none', tufts: null, flowers: false,
+    far: [[24, 'toyBlock'], [18, 'bookStack'], [10, 'plushBear'], [14, 'toyBall'], [12, 'pencil']], near: [[1, 'toyBlock']], landmark: ['plushBear'], rock: 0xE5383B, statue: 'toyBlock', arch: true, relief: 0.6 },
+  { key: 'bonbons', breakable: 'gumdrop', tex: 'candy', name: 'Monde des bonbons', sky: ['#FFB8E0', '#FFD8EE', '#FFF0F8'], fog: 0xFFE2F2, hemi: [0xFFF0FA, 0xC88AAA, 0.9], sun: [0xFFF4F8, 2.3],
+    ground: { track: 0xFFE8F2, trackAlt: 0xFFD6E8, pattern: 'stripes', patch: 0xC8F0FF, verge: 0xA8E8C8, field: 0xF8C8E0, fieldAlt: 0xC8E8FF },
+    fast: { name: 'sucre glace', color: 0xFFFFFF }, slow: { name: 'chocolat fondu', color: 0x6E3A1E }, border: 'candy', tufts: null, flowers: false,
+    far: [[24, 'lollipop'], [18, 'candyCane'], [20, 'gumdrop'], [14, 'marshmallow'], [10, 'donut']], near: [[1, 'gumdrop']], landmark: ['lollipop'], rock: 0xFF8AC8, statue: 'gumdrop', arch: true,
+    passage: { body: 0xF8B8D8, top: 0xFFFFFF } },
+  { key: 'lune', breakable: 'moonRock', tex: 'moon', name: 'Surface lunaire', sky: ['#000008', '#05051A', '#151530'], stars: true, fog: 0x101028, fogNear: 90, fogFar: 270, hemi: [0xC8C8E0, 0x2A2A30, 0.6], sun: [0xFFFFFF, 2.8],
+    ground: { track: 0xA8A8AC, trackAlt: 0x9A9A9E, pattern: 'craters', patch: 0x7E7E84, verge: 0x8E8E94, field: 0x86868C, fieldAlt: 0x76767C },
+    fast: { name: 'roche polie', color: 0x6E6E74 }, slow: { name: 'poussière fine', color: 0xC8C8CC }, border: 'none', tufts: null, flowers: false,
+    far: [[30, 'moonRock'], [14, 'craterRim'], [6, 'lunarModule'], [8, 'dish']], near: [[1, 'moonRock']], landmark: ['lunarModule', 'dish'], rock: 0x8A8A90, statue: 'moonRock', arch: false, gravity: 0.6,
+    passage: { body: 0x8A8A90, top: 0xA8A8AC } },
+  { key: 'celeste', breakable: 'cloud', tex: 'cloud', name: 'Cité céleste', sky: ['#8EC8FF', '#D8ECFF', '#FFF4FA'], fog: 0xF0F4FF, hemi: [0xFFFFFF, 0xC8D8F0, 0.95], sun: [0xFFF8F0, 2.4],
+    ground: { track: 0xF4F6FF, trackAlt: 0xE8ECFA, pattern: 'rainbow', patch: 0xFFE8F4, verge: 0xC8E8B8, field: 0xFFFFFF, fieldAlt: 0xE8F0FF },
+    fast: { name: 'arc-en-ciel', color: 0xB8A8FF }, slow: { name: 'nuage mou', color: 0xFFFFFF }, border: 'none', tufts: null, flowers: false,
+    far: [[30, 'cloud'], [16, 'floatingIsland'], [14, 'crystal'], [8, 'cherryTree']], near: [[1, 'cloud']], landmark: ['rainbow'], rock: 0xE8E8FF, statue: 'crystal', arch: true,
+    passage: { body: 0xE8ECFA, top: 0xFFFFFF } },
 ];
 
-// Monde d'un niveau : après le dernier, on recommence au premier
-export const themeIndex = (level) => (Math.max(1, level) - 1) % THEMES.length;
-export const themeFor = (level) => THEMES[themeIndex(level)];
-export { pond, mix };
+export function themeFor(level) { return THEMES[themeIndex(level)]; }
+// Rang du monde (0 = premier) : après le dernier monde, le jeu repart au premier
+export function themeIndex(level) { return (Math.max(1, level) - 1) % THEMES.length; }
+
+// Fabrique un décor par son nom
+export function makeProp(name, s, r) { const f = T[name]; return f ? f(s, r) : A.rock(s); }
+
+// Couleur du sol à un point de la grille de terrain (sRGB 0..1 dans out)
+const C = (hex) => [((hex >> 16) & 255) / 255, ((hex >> 8) & 255) / 255, (hex & 255) / 255];
+const cache = new WeakMap();
+function cols(th) {
+  if (!cache.has(th)) { const g = th.ground, o = {}; for (const k of ['track', 'trackAlt', 'patch', 'verge', 'field', 'fieldAlt']) o[k] = C(g[k]); o.fast = C(th.fast.color); o.slow = th.slow ? C(th.slow.color) : o.track; cache.set(th, o); }
+  return cache.get(th);
+}
+export function groundColor(th, x, z, half, zone, n, out) {
+  const c = cols(th), g = th.ground, ax = Math.abs(x);
+  const mix = (a, b, t) => { out[0] = a[0] + (b[0] - a[0]) * t + n; out[1] = a[1] + (b[1] - a[1]) * t + n; out[2] = a[2] + (b[2] - a[2]) * t + n; };
+  const patchN = Math.sin(x * 0.21 + z * 0.13) + Math.sin(x * 0.09 - z * 0.27 + 2) + Math.sin(z * 0.05 + x * 0.3);
+  if (zone === 'fast' || zone === 'slow') { const z0 = zone === 'fast' ? c.fast : c.slow; mix(z0, z0, 0); return out; }
+  if (ax < half - 0.5) {
+    // Piste
+    let t = 0;
+    switch (g.pattern) {
+      case 'stripes': t = Math.floor(-z / 7) % 2 ? 1 : 0; break;
+      case 'pavers': case 'slabs': { const cs = g.pattern === 'pavers' ? 2.5 : 5; const cx = Math.floor(x / cs), cz = Math.floor(z / cs); t = ((cx * 73856093) ^ (cz * 19349663)) & 1; if (Math.abs(x / cs - Math.round(x / cs)) < 0.06 || Math.abs(z / cs - Math.round(z / cs)) < 0.06) { mix(c.trackAlt, [0.25, 0.24, 0.22], 0.5); return out; } break; }
+      case 'planks': { const px = x / 1.6; t = Math.floor(px) % 2 ? 0.6 : 0; if (Math.abs(px - Math.round(px)) < 0.05) { mix(c.trackAlt, [0.2, 0.12, 0.06], 0.7); return out; } break; }
+      case 'lanes': { const lx = Math.abs(ax - 7.3) < 0.25 || ax < 0.2; if (lx && Math.floor(-z / 4) % 2 === 0) { out[0] = out[1] = out[2] = 0.92; return out; } if (Math.abs(ax - (half - 1.2)) < 0.25) { out[0] = 0.95; out[1] = 0.85; out[2] = 0.3; return out; } t = patchN > 1.2 ? 0.6 : 0; break; }
+      case 'ruts': t = Math.abs(ax - 4) < 0.9 ? 1 : 0; break;
+      case 'craters': { const cx = Math.round(x / 9) * 9, cz = Math.round(z / 9) * 9, d = Math.hypot(x - cx, z - cz); t = d < 2.4 ? 1 : 0; if (d < 2.4) { mix(c.patch, c.patch, 0); return out; } break; }
+      case 'lava': if (Math.abs(Math.sin(x * 0.35 + z * 0.08) + Math.sin(z * 0.21 - x * 0.12)) < 0.05) { out[0] = 1; out[1] = 0.42; out[2] = 0.12; return out; } t = patchN > 1 ? 1 : 0; break;
+      case 'rainbow': { const bands = [[1, 0.6, 0.6], [1, 0.82, 0.55], [1, 0.97, 0.6], [0.65, 0.95, 0.65], [0.6, 0.8, 1], [0.8, 0.65, 1]]; const b = bands[Math.max(0, Math.min(5, Math.floor((x + half) / (2 * half) * 6)))]; if (ax < half - 3) { mix(c.track, b, 0.35); return out; } break; }
+      case 'leaves': t = patchN > 0.6 ? 1 : 0; break;
+      case 'gravel': t = ((Math.floor(x * 1.7) * 7 + Math.floor(z * 1.7) * 13) & 3) === 0 ? 1 : 0; break;
+      default: t = patchN > 0.8 ? 0.7 : 0;
+    }
+    if (g.pattern !== 'leaves' && patchN > 1.9) { mix(c.patch, c.patch, 0); return out; }
+    if (g.pattern === 'leaves' && patchN > 1.5) { mix(c.patch, c.patch, 0); return out; }
+    mix(c.track, c.trackAlt, t); return out;
+  }
+  if (ax < half + 2) { mix(c.verge, c.verge, 0); return out; }
+  // Champs
+  if (g.fieldPattern === 'rows') { const row = Math.abs((ax % 3.2) - 1.6) < 0.8; mix(row ? c.field : c.fieldAlt, c.fieldAlt, 0); return out; }
+  if (g.fieldPattern === 'water') { const shore = ax < half + 9; if (shore) { mix(c.verge, c.fieldAlt, (ax - half - 2) / 7); return out; } mix(c.field, c.fieldAlt, 0.5 + 0.5 * Math.sin(x * 0.3 + z * 0.2)); return out; }
+  mix(c.field, c.fieldAlt, patchN > 0.5 ? 1 : 0); return out;
+}
+
+// ---------- Texture de la piste (canvas 256 × 256, répétée tous les 6 m) ----------
+// La piste reçoit une vraie texture par monde : herbe, sable ridé, terre caillouteuse, boue, pavés, gravier,
+// asphalte avec marquages, béton, neige, roche volcanique, parquet, sucre, poussière lunaire, nuages.
+const texCache = new Map();
+export function trackTexture(th, THREE) {
+  if (texCache.has(th.key)) return texCache.get(th.key);
+  const N = 256, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d');
+  const hex = (h, k = 1) => { const r = ((h >> 16) & 255) * k, gg = ((h >> 8) & 255) * k, b = (h & 255) * k; return `rgb(${Math.min(255, r) | 0},${Math.min(255, gg) | 0},${Math.min(255, b) | 0})`; };
+  let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const G = th.ground, base = G.track, alt = G.trackAlt;
+  const dots = (n, col, rmin, rmax) => { for (let i = 0; i < n; i++) { g.fillStyle = typeof col === 'function' ? col() : col; g.beginPath(); g.arc(rnd() * N, rnd() * N, rmin + rnd() * (rmax - rmin), 0, 7); g.fill(); } };
+  g.fillStyle = hex(base); g.fillRect(0, 0, N, N);
+  switch (th.tex) {
+    case 'grass': g.fillStyle = hex(alt); g.fillRect(0, 0, N, N / 2); for (let i = 0; i < 900; i++) { g.strokeStyle = hex(rnd() < 0.5 ? base : alt, 0.8 + rnd() * 0.4); g.lineWidth = 1.5; const x = rnd() * N, y = rnd() * N; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (rnd() - 0.5) * 3, y - 4 - rnd() * 5); g.stroke(); } break;
+    case 'sand': for (let y = 0; y < N; y += 9) { g.strokeStyle = hex(alt, 0.95); g.lineWidth = 2.5; g.beginPath(); for (let x = 0; x <= N; x += 8) g.lineTo(x, y + Math.sin(x * 0.05 + y) * 3); g.stroke(); } dots(300, () => hex(base, 1.05 + rnd() * 0.08), 0.5, 1.2); break;
+    case 'dirt': dots(500, () => hex(rnd() < 0.5 ? alt : base, 0.75 + rnd() * 0.4), 1, 3.5); for (let i = 0; i < 12; i++) { g.strokeStyle = hex(base, 0.7); g.lineWidth = 1; g.beginPath(); let x = rnd() * N, y = rnd() * N; g.moveTo(x, y); for (let k = 0; k < 5; k++) { x += (rnd() - 0.5) * 30; y += (rnd() - 0.5) * 30; g.lineTo(x, y); } g.stroke(); } break;
+    case 'mud': dots(40, () => hex(alt, 0.8 + rnd() * 0.3), 8, 22); dots(200, () => hex(base, 0.7 + rnd() * 0.5), 1, 3); break;
+    case 'leaves': dots(380, () => hex([0xE07B26, 0xC9471F, 0xEAB02A, 0x8E6A2A][Math.floor(rnd() * 4)], 0.9 + rnd() * 0.2), 2, 6); break;
+    case 'pavers': { const cs = 32; for (let y = 0; y < N; y += cs) for (let x = 0; x < N; x += cs) { const o = (y / cs) % 2 ? cs / 2 : 0; g.fillStyle = hex(rnd() < 0.5 ? base : alt, 0.85 + rnd() * 0.25); g.fillRect((x + o) % N + 2, y + 2, cs - 4, cs - 4); if ((x + o) % N + cs > N) g.fillRect(-N + (x + o) % N + 2, y + 2, cs - 4, cs - 4); } g.fillStyle = 'rgba(40,40,30,0.35)'; for (let y = 0; y < N; y += cs) g.fillRect(0, y, N, 2); dots(60, 'rgba(90,120,60,0.5)', 1, 3); break; }
+    case 'gravel': dots(1600, () => hex(rnd() < 0.5 ? base : alt, 0.75 + rnd() * 0.45), 0.8, 2.2); break;
+    case 'asphalt': dots(2500, () => hex(base, 0.7 + rnd() * 0.6), 0.4, 1); break;
+    case 'concrete': { g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(0, 0, N, 2); g.fillRect(0, 0, 2, N); dots(400, () => hex(base, 0.85 + rnd() * 0.3), 0.5, 1.5); dots(8, 'rgba(60,50,40,0.25)', 6, 14); break; }
+    case 'snow': g.fillStyle = hex(alt); for (let i = 0; i < 30; i++) { g.beginPath(); g.ellipse(rnd() * N, rnd() * N, 20 + rnd() * 30, 8 + rnd() * 10, rnd() * 3, 0, 7); g.fill(); } dots(250, 'rgba(255,255,255,0.9)', 0.5, 1.2); for (let y = 0; y < N; y += 64) { g.strokeStyle = 'rgba(160,190,215,0.35)'; g.lineWidth = 3; g.beginPath(); g.moveTo(N * 0.3, y); g.lineTo(N * 0.32, y + 64); g.moveTo(N * 0.7, y); g.lineTo(N * 0.68, y + 64); g.stroke(); } break;
+    case 'lava': dots(200, () => hex(base, 0.7 + rnd() * 0.6), 2, 6); for (let i = 0; i < 9; i++) { g.strokeStyle = 'rgb(255,110,30)'; g.lineWidth = 2; g.beginPath(); let x = rnd() * N, y = rnd() * N; g.moveTo(x, y); for (let k = 0; k < 6; k++) { x += (rnd() - 0.5) * 40; y += (rnd() - 0.5) * 40; g.lineTo(x, y); } g.stroke(); } break;
+    case 'planks': for (let x = 0; x < N; x += 32) { g.fillStyle = hex(rnd() < 0.5 ? base : alt, 0.9 + rnd() * 0.2); g.fillRect(x, 0, 32, N); for (let k = 0; k < 6; k++) { g.strokeStyle = hex(base, 0.8); g.lineWidth = 1; g.beginPath(); g.moveTo(x + 4 + rnd() * 24, 0); g.bezierCurveTo(x + rnd() * 32, N / 3, x + rnd() * 32, N * 0.66, x + 4 + rnd() * 24, N); g.stroke(); } g.fillStyle = 'rgba(50,25,10,0.6)'; g.fillRect(x, 0, 2, N); g.fillRect(x, (x * 3) % N, 32, 2); } break;
+    case 'candy': { const cs = 32; for (let y = 0; y < N; y += cs) for (let x = 0; x < N; x += cs) { g.fillStyle = ((x + y) / cs) % 2 ? hex(base) : hex(alt); g.fillRect(x, y, cs, cs); } dots(220, () => ['#FF5A8A', '#5AD0FF', '#FFE14D', '#7CFF8A', '#B98AFF'][Math.floor(rnd() * 5)], 1, 2.2); break; }
+    case 'moon': dots(1200, () => hex(base, 0.85 + rnd() * 0.3), 0.5, 1.5); for (let i = 0; i < 10; i++) { const x = rnd() * N, y = rnd() * N, rr = 6 + rnd() * 16; g.fillStyle = hex(alt, 0.85); g.beginPath(); g.arc(x, y, rr, 0, 7); g.fill(); g.strokeStyle = hex(base, 1.12); g.lineWidth = 2; g.beginPath(); g.arc(x - 1, y - 1, rr, 3.6, 5.8); g.stroke(); } break;
+    case 'cloud': dots(70, () => `rgba(255,255,255,${0.5 + rnd() * 0.5})`, 10, 26); dots(40, 'rgba(220,226,250,0.6)', 8, 20); break;
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
+  // Couleur moyenne : sert à teinter les zones spéciales pour qu'elles gardent leur couleur sous la texture
+  const d = g.getImageData(0, 0, N, N).data; let r = 0, gg = 0, b = 0; for (let i = 0; i < d.length; i += 16) { r += d[i]; gg += d[i + 1]; b += d[i + 2]; } const n = d.length / 16;
+  const lin = (v) => Math.pow(v / 255, 2.2);
+  t.userData.avg = [lin(r / n), lin(gg / n), lin(b / n)];
+  texCache.set(th.key, t); return t;
+}

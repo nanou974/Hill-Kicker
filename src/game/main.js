@@ -1,10 +1,9 @@
-// Hill Kicker — boucle de jeu jouable. Chaque niveau a son monde (themes.js), et le jeu reboucle après le dernier.
+// Hill Kicker — boucle de jeu jouable (niveau générique « Prairie fleurie »).
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import * as A from '../assets3d.js';
 import { makeLayout, LEVEL_LENGTH, COIN_VALUE } from './layout.js';
 import { World } from './world.js';
-import { themeFor, themeIndex } from './themes.js';
 import { createCar, step, tuning, launchSpeed } from './physics.js';
 import { Economy, UPGRADES, VEHICLE_PRICES } from './economy.js';
 import { Joystick } from './input.js';
@@ -12,6 +11,7 @@ import { Sound } from './audio.js';
 import { Music } from './music.js';
 import { decodeSave } from './transfer.js';
 import { VERSION } from './version.js';
+import { themeFor, themeIndex } from './themes.js';
 
 const $ = (id) => document.getElementById(id);
 // Vitesse affichée : le décor low-poly donne une impression de vitesse plus faible que la vitesse physique,
@@ -37,6 +37,7 @@ renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
 host.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 const sky = document.createElement('canvas'); sky.width = 4; sky.height = 256;
+{ const g = sky.getContext('2d'); const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#6DB8EC'); gr.addColorStop(0.6, '#B4E0F7'); gr.addColorStop(1, '#E4F5FF'); g.fillStyle = gr; g.fillRect(0, 0, 4, 256); }
 const skyTex = new THREE.CanvasTexture(sky); skyTex.colorSpace = THREE.SRGBColorSpace; scene.background = skyTex;
 // Brouillard lointain : on voit venir les pièces et gemmes de loin (jusqu'à ~280 m)
 scene.fog = new THREE.Fog(0xCFEAF7, 85, 270);
@@ -50,15 +51,6 @@ sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
 Object.assign(sun.shadow.camera, { left: -24, right: 24, top: 24, bottom: -24, near: 1, far: 120 });
 sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.03;
 scene.add(sun, sun.target);
-// Ciel, brume et lumières du monde du niveau
-function applyTheme(T) {
-  const g = sky.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 256);
-  gr.addColorStop(0, T.sky[0]); gr.addColorStop(0.6, T.sky[1]); gr.addColorStop(1, T.sky[2]); g.fillStyle = gr; g.fillRect(0, 0, 4, 256);
-  skyTex.needsUpdate = true;
-  scene.fog.color.set(T.fog);
-  hemi.color.set(T.hemi[0]); hemi.groundColor.set(T.hemi[1]);
-  sun.color.set(T.sun[0]); sun.intensity = T.sun[1];
-}
 const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 700);
 let carHeight = 1.5; // hauteur du véhicule choisi : la caméra monte pour les gros véhicules
 
@@ -114,10 +106,22 @@ let fovKick = 0;  // effet de vitesse (élargissement du champ de vision) quand 
 let fovNow = 0;   // valeur réellement appliquée : elle suit fovKick en douceur (pas de saut d'image)
 const joy = new Joystick($('app'), $('joy-base'), $('joy-knob'));
 
+// Ambiance du monde : ciel (dégradé, étoiles), brouillard, lumières
+function applyTheme(th) {
+  const g = sky.getContext('2d'); sky.height = 256; sky.width = th.stars ? 256 : 4;
+  const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, th.sky[0]); gr.addColorStop(0.6, th.sky[1]); gr.addColorStop(1, th.sky[2]); g.fillStyle = gr; g.fillRect(0, 0, sky.width, 256);
+  if (th.stars) { const r = A.rng(99); for (let i = 0; i < 260; i++) { g.fillStyle = `rgba(255,255,255,${0.4 + r() * 0.6})`; g.fillRect(r() * 256, r() * 170, r() < 0.1 ? 2 : 1, r() < 0.1 ? 2 : 1); } }
+  skyTex.needsUpdate = true;
+  scene.fog.color.setHex(th.fog); scene.fog.near = th.fogNear ?? 85; scene.fog.far = th.fogFar ?? 270;
+  hemi.color.setHex(th.hemi[0]); hemi.groundColor.setHex(th.hemi[1]); hemi.intensity = th.hemi[2];
+  sun.color.setHex(th.sun[0]); sun.intensity = th.sun[1];
+  renderer.toneMappingExposure = th.exposure ?? 0.98;
+  $('v-world').textContent = th.name;
+}
 function buildLevel() {
   if (world) world.dispose();
   layout = makeLayout(eco.s.level, eco.s.gemsTaken);
-  applyTheme(themeFor(eco.s.level));
+  applyTheme(layout.theme);
   world = new World(scene, layout);
   world.setLauncherTier(A.tierOf(eco.s.up.lanceur));
   placeCarOnLauncher();
@@ -158,7 +162,6 @@ function refreshHome() {
   const s = eco.s;
   refreshTop();
   $('v-level').textContent = `NIVEAU ${s.level}`;
-  $('v-world').textContent = themeFor(s.level).name;
   $('v-carthumb').src = `assets/renders/vehicules/t_${s.car}.png`;
   const ci = eco.chestIn(); $('v-chest').textContent = ci > 0 ? mmss(ci) : 'OUVRIR !';
   document.querySelector('#b-chest .tile-img').classList.toggle('ready', ci <= 0);
@@ -304,7 +307,7 @@ $('b-nextlevel').addEventListener('click', () => { show('p-level', false); build
 function backHome() { buildLevel(); setScreen('home'); refreshHome(); }
 
 function runStep(dt) {
-  const worldPhys = { ground: (x, z) => layout.ground(x, z, tune.mu), rampAt: layout.rampAt, rampTouch: layout.rampTouch, barrier: layout.barrier, obstacleAt: layout.obstacleAt };
+  const worldPhys = { gravity: layout.gravity, ground: (x, z) => layout.ground(x, z, tune.mu), rampAt: layout.rampAt, rampTouch: layout.rampTouch, barrier: layout.barrier, obstacleAt: layout.obstacleAt };
   const events = [];
   const sub = 4, h = dt / sub;
   for (let i = 0; i < sub; i++) {
@@ -477,7 +480,8 @@ setScreen('home');
 refreshHome();
 requestAnimationFrame(frame);
 // Outils de test : avance rapide de la course
-window.__hk = { eco, get car() { return car; }, get layout() { return layout; }, get state() { return state; }, get camera() { return camera; }, get world() { return world; }, themeIndex, get carMesh() { return carMesh; }, music, sfx, simulate(sec) { for (let t = 0; t < sec && state === 'run'; t += 1 / 30) runStep(1 / 30); },
+window.__hk = { eco, get car() { return car; }, get layout() { return layout; }, get state() { return state; }, get camera() { return camera; }, get world() { return world; }, get carMesh() { return carMesh; }, music, sfx, simulate(sec) { for (let t = 0; t < sec && state === 'run'; t += 1 / 30) runStep(1 / 30); },
+  themeIndex,
   // Outil de test : affiche directement un niveau (et son monde)
   goLevel(n) { eco.s.level = n; eco.s.gemsTaken = []; buildLevel(); refreshHome(); },
   // Outil de test : fige la course (la caméra continue de suivre la voiture)

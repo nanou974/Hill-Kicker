@@ -2,10 +2,12 @@
 // obstacles et passages étroits (portails, arches, tunnels, grottes, gorges, ruines).
 // Fichier sans dépendance à Three.js pour pouvoir simuler la physique dans Node.
 import { heightAt, rng } from '../assets3d.js';
+import { themeFor } from './themes.js';
 
 export const LEVEL_LENGTH = 3000;
 export const TRACK = { half: 22 };
-const TARMAC_MU = 0.55; // la voiture glisse mieux sur le goudron
+const TARMAC_MU = 0.55; // zones rapides (goudron, glace, planches…) : la voiture glisse mieux
+const SLOW_MU = 1.8;    // zones lentes (boue, sable mou, marécage, chocolat…) : elles freinent
 const CAR_HALF = 0.9;   // demi-largeur de la voiture pour les collisions
 const CAR_HALF_LEN = 2.0; // demi-longueur de la voiture : le moindre contact avec une plaque ou une rampe compte
 
@@ -15,7 +17,9 @@ const smooth = (t) => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 *
 
 export function makeLayout(level, gemsTaken = []) {
   const r = rng(1000 + level * 77);
-  const opt = { half: TRACK.half, slope: 0.148 - (Math.min(level, 20) - 1) * 0.0009 };
+  // Monde du niveau (thème) : relief, talus, zones lentes, gravité. Au-delà du niveau 20, la pente continue de se raidir.
+  const theme = themeFor(level);
+  const opt = { half: TRACK.half, slope: 0.148 - (Math.min(level, 20) - 1) * 0.0009 - Math.max(0, Math.min(level - 20, 40)) * 0.0004, relief: theme.relief ?? 1, bank: theme.bank ?? 1 };
   const tarmac = [], ramps = [], plates = [], coins = [], gems = [], props = [], arches = [], forks = [], obstacles = [], passages = [];
 
   // Bifurcations : une colline infranchissable sépare la piste en deux chemins sur 150 à 200 m.
@@ -48,12 +52,12 @@ export function makeLayout(level, gemsTaken = []) {
       else { const c = rx(10); p.openings.push({ c0: c, c1: c, w: 9 }); }
     } else if (kind === 'canyon') {
       // Gorge : deux falaises resserrent la piste, le passage serpente
-      p.openings.push({ c0: rx(6), c1: rx(6), w: 13 });
+      { const c0 = rx(6), c1 = Math.max(-6, Math.min(6, c0 + rx(len * 0.15))); p.openings.push({ c0, c1, w: 13 }); } // virage limité : faisable même à pleine vitesse
     } else if (kind === 'tunnel') {
       const c = rx(8); p.openings.push({ c0: c, c1: c, w: 10 });
     } else if (kind === 'cave') {
       // Grotte : l'entrée et la sortie ne sont pas alignées, et des stalagmites barrent une partie du passage
-      p.openings.push({ c0: rx(7), c1: rx(7), w: 11 });
+      { const c0 = rx(7), c1 = Math.max(-7, Math.min(7, c0 + rx(len * 0.15))); p.openings.push({ c0, c1, w: 11 }); } // virage limité : faisable même à pleine vitesse
     } else if (kind === 'ruins') {
       // Ruines : une colonnade en travers de la piste, quelques colonnes tombées ou cassées
       p.openings = null;
@@ -75,6 +79,11 @@ export function makeLayout(level, gemsTaken = []) {
   // Zones goudronnées : bandes larges régulières
   for (let s = 90; s < LEVEL_LENGTH - 60; s += 130 + r() * 120) {
     tarmac.push({ z0: -s, z1: -(s + 30 + r() * 30), x: (r() - 0.5) * 18, w: 7 + r() * 4 });
+  }
+  // Zones lentes propres au monde (boue, sable mou…) : plus étroites, à contourner
+  if (theme.slow) {
+    const rs = rng(15000 + level * 29);
+    for (let s = 170 + rs() * 80; s < LEVEL_LENGTH - 80; s += 190 + rs() * 160) tarmac.push({ z0: -s, z1: -(s + 18 + rs() * 22), x: (rs() - 0.5) * 22, w: 4 + rs() * 3, slow: true });
   }
   // Rampes : la première est assez loin du lanceur pour laisser la voiture se poser sur la piste
   for (let s = 140; s < LEVEL_LENGTH - 50; s += 160 + r() * 140) {
@@ -122,6 +131,8 @@ export function makeLayout(level, gemsTaken = []) {
   filt(props, p => !nearPassage(p.z, 4, 3));
   filt(coins, c => !nearPassage(c.z, 1, 1) || inOpening(c.x, c.z, 1));
   filt(tarmac, t => t.fork || !passages.some(p => t.z1 < p.z0 && t.z0 > p.z1));
+  // Zones lentes : jamais juste avant une rampe ou une plaque, ni dans une bifurcation
+  filt(tarmac, t => !t.slow || (!ramps.some(p => Math.abs(p.x - t.x) < t.w + p.w / 2 && p.z < t.z0 + 5 && p.z > t.z1 - 35) && !plates.some(p => Math.abs(p.x - t.x) < t.w + 3 && p.z < t.z0 + 5 && p.z > t.z1 - 20) && !forks.some(f => t.z1 < f.z0 + 40 && t.z0 > f.z1 - 20)));
   // Pièces qui guident vers une ouverture (ou un trou de la colonnade)
   const rc = rng(13000 + level * 17);
   for (const p of passages) {
@@ -189,10 +200,11 @@ export function makeLayout(level, gemsTaken = []) {
     if (gemsTaken.includes(g.id)) g.taken = true;
   }
 
-  function surfaceMu(x, z) {
-    for (const t of tarmac) if (z < t.z0 && z > t.z1 && Math.abs(x - t.x) < t.w) return TARMAC_MU;
-    return 1;
+  function zoneAt(x, z) {
+    for (const t of tarmac) if (z < t.z0 && z > t.z1 && Math.abs(x - t.x) < t.w) return t.slow ? 'slow' : 'fast';
+    return null;
   }
+  function surfaceMu(x, z) { const zn = zoneAt(x, z); return zn === 'fast' ? TARMAC_MU : zn === 'slow' ? SLOW_MU : 1; }
   function obstacleAt(x, z) {
     for (const o of obstacles) if (Math.abs(z - o.z) < 3 && Math.hypot(x - o.x, z - o.z) < o.r + CAR_HALF) return o;
     // Partie pleine d'un passage : la voiture doit être entièrement dans une ouverture
@@ -202,7 +214,7 @@ export function makeLayout(level, gemsTaken = []) {
     return null;
   }
   return {
-    level, opt, tarmac, ramps, plates, coins, gems, props, arches, forks, obstacles, passages, ridgeHalf, openX,
+    level, theme, gravity: theme.gravity ?? 1, opt, tarmac, ramps, plates, coins, gems, props, arches, forks, obstacles, passages, ridgeHalf, openX,
     ground(x, z, baseMu) { return { h: heightAt(x, z, opt), mu: baseMu * surfaceMu(x, z) }; },
     rampAt(x, z) {
       for (const p of ramps) if (Math.abs(x - p.x) < p.w / 2 && z < p.z + p.l / 2 && z > p.z - p.l / 2) return p;
@@ -221,7 +233,8 @@ export function makeLayout(level, gemsTaken = []) {
       for (const p of ramps) if (Math.abs(x - p.x) < p.w / 2 + CAR_HALF && Math.abs(z - p.z) < p.l / 2 + CAR_HALF_LEN) return p;
       return null;
     },
-    isTarmac(x, z) { return surfaceMu(x, z) < 1; },
+    isTarmac(x, z) { return zoneAt(x, z) === 'fast'; },
+    zoneAt,
     // Zone interdite (colline d'une bifurcation) : renvoie le centre et la demi-largeur à éviter
     barrier(x, z) {
       for (const f of forks) if (z <= f.z0 && z >= f.z1) {

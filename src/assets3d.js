@@ -10,7 +10,7 @@ export function rng(seed) {
 const R = rng(42);
 
 export function mat(color, o = {}) {
-  return new THREE.MeshStandardMaterial({ color, roughness: o.r ?? 0.6, metalness: o.m ?? 0.0, flatShading: o.flat ?? true, emissive: o.e ?? 0x000000, emissiveIntensity: o.ei ?? 1, envMapIntensity: o.env ?? 0.2, transparent: o.t ?? false, opacity: o.o ?? 1, map: o.map ?? null });
+  return new THREE.MeshStandardMaterial({ color, roughness: o.r ?? 0.6, metalness: o.m ?? 0.0, flatShading: o.flat ?? true, emissive: o.e ?? 0x000000, emissiveIntensity: o.ei ?? 1, envMapIntensity: o.env ?? 0.2, transparent: o.t ?? false, opacity: o.o ?? 1, map: o.map ?? null, side: o.side ?? THREE.FrontSide });
 }
 function shadowAll(o) { o.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } }); return o; }
 
@@ -24,11 +24,13 @@ function canvasTex(w, h, draw) {
 export function heightAt(x, z, opt = {}) {
   const slope = opt.slope ?? 0.14;
   let h = z * slope; // forward = -z, goes down
-  h += Math.sin(z * 0.045) * 2.2 + Math.sin(z * 0.11 + 1.3) * 0.9;
-  h += Math.sin(x * 0.07 + z * 0.02) * 0.6;
+  // relief : amplitude des bosses (selon le monde) ; bank : hauteur des talus de chaque côté de la piste
+  const rel = opt.relief ?? 1, bank = opt.bank ?? 1;
+  h += (Math.sin(z * 0.045) * 2.2 + Math.sin(z * 0.11 + 1.3) * 0.9) * rel;
+  h += Math.sin(x * 0.07 + z * 0.02) * 0.6 * rel;
   const ax = Math.abs(x);
   const half = opt.half ?? 16;
-  if (ax > half) { const d = ax - half; h += Math.min(d * 0.22, 9) + Math.max(0, d - 40) * 0.25 + Math.sin(d * 0.15 + z * 0.05) * Math.min(d * 0.06, 2.5); }
+  if (ax > half) { const d = ax - half; h += (Math.min(d * 0.22, 9) + Math.max(0, d - 40) * 0.25 + Math.sin(d * 0.15 + z * 0.05) * Math.min(d * 0.06, 2.5)) * bank; }
   return h;
 }
 
@@ -118,17 +120,16 @@ export function lump(seed, sx, sy, sz, color) {
   const m = new THREE.Mesh(lumpCache.get(seed), rockMats.get(c));
   m.scale.set(sx, sy, sz); return m;
 }
-// palette : couleurs de roche propres au monde (facultatif)
-export function rock(s = 1, palette) {
+export function rock(s = 1) {
   const seed = Math.floor(R() * 24), r = rng(seed + 500);
-  const m = lump(seed, s * (0.8 + r() * 0.6), s * (0.5 + r() * 0.5), s * (0.8 + r() * 0.6), palette ? palette[Math.floor(R() * palette.length)] : undefined);
+  const m = lump(seed, s * (0.8 + r() * 0.6), s * (0.5 + r() * 0.5), s * (0.8 + r() * 0.6));
   m.rotation.set(r() * 0.4, r() * 6, r() * 0.4);
   return shadowAll(m);
 }
 // Rocher obstacle de la piste, cinq familles de formes : rond, aiguille, dalle, amas, pierres empilées
-export function rockShape(type, seed, palette = ROCK_COLORS) {
+export function rockShape(type, seed, color = null) {
   const g = new THREE.Group(), r = rng(seed + 1);
-  const col = palette[Math.floor(r() * palette.length)];
+  const col0 = ROCK_COLORS[Math.floor(r() * ROCK_COLORS.length)], col = color ?? col0; // couleur imposée par le monde
   const add = (sx, sy, sz, x, y, z, c = col) => { const m = lump(100 + Math.floor(r() * 200), sx, sy, sz, c); m.position.set(x, y, z); m.rotation.set((r() - 0.5) * 0.5, r() * 6, (r() - 0.5) * 0.5); g.add(m); return m; };
   if (type === 'spire') {
     const m = add(0.75, 2.1, 0.7, 0, 1.8, 0); m.rotation.set((r() - 0.5) * 0.25, r() * 6, (r() - 0.5) * 0.25);

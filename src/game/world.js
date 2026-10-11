@@ -1,12 +1,16 @@
 // Monde 3D d'un niveau : terrain généré par tronçons autour de la voiture, décors, pièces, rampes, plaques, arrivée.
-// Les couleurs et le décor viennent du monde du niveau (themes.js).
 import * as THREE from 'three';
 import * as A from '../assets3d.js';
+import * as P from '../props.js';
 import { LEVEL_LENGTH } from './layout.js';
 import { buildPassage } from './passages.js';
-import { themeFor, pond } from './themes.js';
+import { groundColor, makeProp, trackTexture } from './themes.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
+// Échelle des objets du monde utilisés comme obstacles « statue » : environ 1 m de rayon, comme la zone de collision
+const STATUE_SCALE = { iceberg: 0.45, trafficCone: 2.4, cactus: 0.8, lavaRock: 0.8, toyBlock: 0.7, gumdrop: 0.9, crystal: 0.9, stoneLantern: 1.2, termiteMound: 0.9 };
+// Échelle des objets cassables du monde (taille d'une botte de foin)
+const BREAK_SCALE = { beachBall: 1.3, pumpkin: 1.3, tumbleweed: 1, beehive: 0.9, stoneLantern: 0.7, trafficCone: 1.6, snowman: 1, lavaRock: 0.6, clam: 0.6, toyBall: 0.6, gumdrop: 0.6, moonRock: 0.6, cloud: 0.4 };
 const CHUNK = 150, AHEAD = 2, BEHIND = 1; // 2 tronçons devant : le terrain chargé va toujours au moins 300 m plus loin, au-delà du brouillard
 const BUDGET_MS = 5; // temps de construction de décor autorisé par image : les tronçons lointains se fabriquent par petits morceaux
 const WIDTH = 240, STEP = 2.5;
@@ -15,7 +19,7 @@ function hash(ix, iz) { let h = (ix * 374761393 + iz * 668265263) ^ 0x5bd1e995; 
 
 export class World {
   constructor(scene, layout) {
-    this.scene = scene; this.L = layout; this.T = themeFor(layout.level); this.chunks = new Map();
+    this.scene = scene; this.L = layout; this.chunks = new Map();
     this.root = new THREE.Group(); scene.add(this.root);
     this.coinMeshes = []; this.gemMeshes = []; this.flying = [];
     this.buildStatic();
@@ -26,7 +30,7 @@ export class World {
     const L = this.L;
     for (const f of L.forks) this.root.add(mergeStatic(this.buildRidge(f)));
     // Passages étroits (portails, arches, tunnels, grottes, gorges, ruines)
-    for (const p of L.passages) this.root.add(mergeStatic(buildPassage(L, p, this.T)));
+    for (const p of L.passages) this.root.add(mergeStatic(buildPassage(L, p)));
     // Lanceur au départ, sur une petite plateforme
     const y0 = L.ground(0, 6, 1).h;
     this.start = new THREE.Group(); this.root.add(this.start);
@@ -61,7 +65,7 @@ export class World {
 
   // Colline rocheuse qui sépare les deux chemins d'une bifurcation
   buildRidge(f) {
-    const L = this.L, T = this.T, g = new THREE.Group();
+    const L = this.L, g = new THREE.Group();
     const nx = 16, len = f.z0 - f.z1, nz = Math.ceil(len / 2.5);
     const pos = [], col = [], idx = [], c = new THREE.Color();
     for (let iz = 0; iz <= nz; iz++) for (let ix = 0; ix <= nx; ix++) {
@@ -73,8 +77,11 @@ export class World {
       const y = L.ground(x, z, 1).h - 0.4 + hgt;
       pos.push(x, y, z);
       const k = hgt / f.h, n = hash(ix * 3, iz * 11) * 0.06;
-      const rc = k > 0.78 ? T.ridge.top : k > 0.3 ? T.ridge.rock : T.ridge.base;           // sommet clair, roche, base
-      c.setRGB(rc[0] + n, rc[1] + n, rc[2] + n * (k > 0.3 ? 1 : 0.5), THREE.SRGBColorSpace);
+      const pal = L.theme.passage;
+      if (pal) { const h = k > 0.6 ? pal.top : pal.body; c.setRGB(((h >> 16) & 255) / 255 + n, ((h >> 8) & 255) / 255 + n, (h & 255) / 255 + n, THREE.SRGBColorSpace); } // colline aux couleurs du monde
+      else if (k > 0.78) c.setRGB(0.95 + n, 0.96 + n, 0.98, THREE.SRGBColorSpace);           // sommet clair
+      else if (k > 0.3) c.setRGB(0.55 + n, 0.57 + n, 0.60 + n, THREE.SRGBColorSpace);    // roche
+      else c.setRGB(0.36 + n, 0.64 + n, 0.27 + n * 0.5, THREE.SRGBColorSpace);           // herbe
       col.push(c.r, c.g, c.b);
     }
     for (let iz = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++) { const a = iz * (nx + 1) + ix, b = a + 1, d = a + nx + 1, e = d + 1; idx.push(a, d, b, b, d, e); }
@@ -84,13 +91,14 @@ export class World {
     geo.setIndex(idx); geo = geo.toNonIndexed(); geo.computeVertexNormals();
     const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9, envMapIntensity: 0, side: THREE.DoubleSide }));
     m.castShadow = true; m.receiveShadow = true; g.add(m);
-    // Quelques arbres et rochers du monde sur les flancs, et un panneau à l'entrée
+    // Quelques sapins et rochers sur les flancs, et un panneau à l'entrée
     const r = A.rng(900 + Math.round(-f.z0));
     for (let k = 0; k < 14; k++) {
       const t = 0.12 + r() * 0.76, z = f.z0 - t * len, side = r() > 0.5 ? 1 : -1, hw = L.ridgeHalf(f, z);
       const x = f.cx + side * hw * (0.55 + r() * 0.25), u = (x - f.cx) / (hw + 0.6);
       const y = L.ground(x, z, 1).h - 0.4 + f.h * Math.pow(Math.sin(Math.PI * t), 0.55) * Math.pow(Math.max(0, 1 - u * u), 0.7) * 0.85;
-      const o = T.ridgeProp(r); o.position.set(x, y - 0.2, z); g.add(o);
+      const th = L.theme, names = th.far.map(f => f[1]).filter(n => !['skyscraper', 'mesa', 'crane', 'volcano', 'stepPyramid', 'pagoda', 'saloon', 'waterTower', 'stoneHouse', 'beachHut', 'stiltCabin', 'shipwreck', 'rainbow', 'floatingIsland', 'container', 'lunarModule'].includes(n));
+      const o = k % 3 ? makeProp(names[k % names.length] || 'rock', 0.9 + r() * 0.6, r) : A.rock(0.6 + r() * 0.7); // décors du monde sur les flancs o.position.set(x, y - 0.2, z); g.add(o);
     }
     const sg = A.sign('<   >', 1.6); sg.position.set(f.cx, L.ground(f.cx, f.z0 + 9, 1).h, f.z0 + 9); g.add(sg);
     return g;
@@ -130,6 +138,40 @@ export class World {
     this.flying.push({ m: prop.mesh, vx, vy, vz, sx: (Math.random() - 0.5) * 14, sz: (Math.random() - 0.5) * 14, t: 0 });
   }
 
+  // Revêtement texturé de la piste (texture du monde), posé juste au-dessus du sol sur toute la largeur roulable.
+  // Les zones rapides / lentes teintent la texture pour rester bien visibles.
+  trackOverlay(z0) {
+    const L = this.L, th = L.theme, half = L.opt.half, tex = trackTexture(th, THREE), avg = tex.userData.avg;
+    const nx = 32, nz = Math.round(CHUNK / 1.5), pos = [], uv = [], col = [], idx = [], c = new THREE.Color();
+    const tile = th.tex === 'planks' ? 8 : 6;
+    for (let iz = 0; iz <= nz; iz++) for (let ix = 0; ix <= nx; ix++) {
+      const x = -half + (2 * half) * ix / nx, z = z0 - CHUNK * iz / nz;
+      pos.push(x, L.ground(x, z, 1).h + 0.05, z); uv.push(x / tile, -z / tile);
+      const zn = L.zoneAt(x, z);
+      const shade = 0.93 + 0.14 * (0.5 + 0.5 * Math.sin(x * 0.13 + z * 0.07) * Math.sin(z * 0.031 - x * 0.05));
+      if (zn) { c.setHex(zn === 'fast' ? th.fast.color : (th.slow ? th.slow.color : th.fast.color)); col.push(c.r / avg[0], c.g / avg[1], c.b / avg[2]); }
+      else col.push(shade, shade, shade);
+    }
+    for (let iz = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++) { const a = iz * (nx + 1) + ix, b = a + 1, d = a + nx + 1, e = d + 1; idx.push(a, b, d, b, e, d); }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    geo.setIndex(idx); geo.computeVertexNormals();
+    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, vertexColors: true, roughness: th.tex === 'snow' || th.tex === 'asphalt' ? 0.7 : 0.95, envMapIntensity: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    m.receiveShadow = true;
+    const grp = new THREE.Group(); grp.add(m);
+    // Ville : marquages au sol (lignes de voies en pointillés, bords jaunes)
+    if (th.tex === 'asphalt') {
+      const white = new THREE.MeshBasicMaterial({ color: 0xF2F2F2, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+      const yellow = new THREE.MeshBasicMaterial({ color: 0xF2C230, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+      const strip = (x, za, zb, w, mat) => { const p = [], ii = []; const n = Math.max(1, Math.ceil((za - zb) / 1.5)); for (let k = 0; k <= n; k++) { const z = za - (za - zb) * k / n; for (const dx of [-w / 2, w / 2]) p.push(x + dx, L.ground(x + dx, z, 1).h + 0.07, z); } for (let k = 0; k < n; k++) { const a = k * 2; ii.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); gg.setIndex(ii); grp.add(new THREE.Mesh(gg, mat)); };
+      for (const lx of [-7.3, 0, 7.3]) for (let zz = z0; zz > z0 - CHUNK; zz -= 8) strip(lx, zz, zz - 4, 0.3, white);
+      for (const sd of [-1, 1]) strip(sd * (half - 0.8), z0, z0 - CHUNK, 0.3, yellow);
+    }
+    return grp;
+  }
+
   // Fait avancer la construction d'un tronçon jusqu'à l'heure limite ; renvoie vrai s'il est terminé
   finish(i, deadline) {
     const p = this.pending.get(i); if (!p) return true;
@@ -142,23 +184,22 @@ export class World {
 
   // Construction d'un tronçon en plusieurs étapes (générateur) : terrain, décor, fusion du décor, objets de la piste
   *chunkSteps(i, g) {
-    const L = this.L, T = this.T;
+    const L = this.L;
     const zTop = -i * CHUNK + (i === -1 ? 0 : 0), z0 = -i * CHUNK, z1 = -(i + 1) * CHUNK;
     // Terrain : grille alignée sur une trame globale pour que les tronçons se raccordent
     const nx = Math.round(WIDTH / STEP), nz = Math.round(CHUNK / STEP);
     const pos = [], col = [], idx = [];
-    const c = new THREE.Color();
+    const c = new THREE.Color(), rgb = [0, 0, 0];
     for (let iz = 0; iz <= nz; iz++) for (let ix = 0; ix <= nx; ix++) {
       const gx = ix - nx / 2, gz = Math.round(-z0 / STEP) + iz;
       const x = gx * STEP + (hash(gx, gz) - 0.5) * 0.9 * (Math.abs(gx * STEP) > 2 ? 1 : 0);
       const z = -gz * STEP + (hash(gz, gx) - 0.5) * 0.9 * (iz > 0 && iz < nz ? 1 : 0);
       const y = L.ground(x, z, 1).h + (hash(gx * 7, gz * 3) - 0.5) * 0.12;
       pos.push(x, y, z);
-      const n = hash(gx * 3, gz * 5) * 0.06, ax = Math.abs(x);
-      const stripe = (Math.floor((gz * STEP) / 7) % 2) ? 0.05 : -0.02;
-      const patch = Math.sin(x * 0.21 + z * 0.13) + Math.sin(x * 0.09 - z * 0.27 + 2) + Math.sin(z * 0.05 + x * 0.3);
-      const zone = L.isTarmac(x, z) ? 'tarmac' : ax < L.opt.half - 0.5 ? 'track' : ax < L.opt.half + 2 ? 'shoulder' : 'field';
-      T.ground(c, zone, x, z, n, stripe, patch);
+      // Couleur du sol selon le monde (piste, zones rapides / lentes, bas-côtés, champs)
+      const n = (hash(gx * 3, gz * 5) - 0.5) * 0.06;
+      groundColor(L.theme, x, z, L.opt.half, L.zoneAt(x, z), n, rgb);
+      c.setRGB(Math.min(1, Math.max(0, rgb[0])), Math.min(1, Math.max(0, rgb[1])), Math.min(1, Math.max(0, rgb[2])), THREE.SRGBColorSpace);
       col.push(c.r, c.g, c.b);
     }
     for (let iz = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++) {
@@ -171,6 +212,7 @@ export class World {
     geo.setIndex(idx); geo = geo.toNonIndexed(); geo.computeVertexNormals();
     const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95, envMapIntensity: 0 }));
     mesh.receiveShadow = true; g.add(mesh);
+    g.add(this.trackOverlay(z0));
     yield;
 
     // Décors sur les bas-côtés : construits dans un groupe à part, puis fusionnés en quelques gros objets
@@ -178,36 +220,53 @@ export class World {
     const r = A.rng(5000 + L.level * 131 + i);
     const ground = (x, z) => L.ground(x, z, 1).h;
     const put = (o, x, z, dy = 0, rot = r() * 6) => { o.position.set(x, ground(x, z) + dy, z); o.rotation.y = rot; deco.add(o); return o; };
-    // Mare ou lagon posé à plat sur la pente du terrain
-    const up = new THREE.Vector3(0, 1, 0);
-    const placePond = (rad, water, rim, x, z) => {
-      const e = 1, nrm = new THREE.Vector3(ground(x - e, z) - ground(x + e, z), 2 * e, ground(x, z - e) - ground(x, z + e)).normalize();
-      const o = pond(rad, water, rim); o.quaternion.setFromUnitVectors(up, nrm); o.position.set(x, ground(x, z) - 0.05, z); deco.add(o);
+    // Décors du monde : listes pondérées du thème (champs, bords de piste, grands monuments)
+    const th = L.theme;
+    const pickW = (list) => { let tot = 0; for (const [w] of list) tot += w; let x = r() * tot; for (const [w, n] of list) { x -= w; if (x <= 0) return n; } return list[0][1]; };
+    const BIG = new Set(['mesa', 'skyscraper', 'crane', 'volcano', 'stepPyramid', 'pagoda', 'saloon', 'waterTower', 'stoneHouse', 'beachHut', 'stiltCabin', 'shipwreck', 'rainbow', 'torii', 'floatingIsland', 'barn', 'windmill', 'lunarModule', 'iceberg', 'igloo', 'container', 'baobab']);
+    const FLOAT = { floatingIsland: [8, 20], cloud: [4, 14] };
+    const place = (name, x, z, s) => {
+      const o = makeProp(name, s, r); let dy = -0.1;
+      if (FLOAT[name] && th.key === 'celeste') dy = FLOAT[name][0] + r() * (FLOAT[name][1] - FLOAT[name][0]);
+      put(o, x, z, dy);
     };
-    // Décor propre au monde du niveau (arbres, bâtiments, animaux…)
-    yield* T.decor({ put, r, L, z0, z1, i, deco, ground, pond: placePond });
+    for (let k = 0; k < 90; k++) {
+      const name = pickW(th.far), big = BIG.has(name), side = r() > 0.5 ? 1 : -1;
+      const x = side * (L.opt.half + (big ? 18 : 3) + Math.pow(r(), big ? 1 : 2.2) * (big ? 45 : 65)), z = z0 - r() * CHUNK;
+      place(name, x, z, big ? 0.8 + r() * 0.5 : 1.1 + r() * 1.3);
+      if (k % 30 === 29) yield;
+    }
+    // Petits décors en bordure de piste
+    for (let k = 0; k < 30; k++) { const side = r() > 0.5 ? 1 : -1; const name = pickW(th.near); place(name, side * (L.opt.half + 0.8 + r() * 3), z0 - r() * CHUNK, BIG.has(name) ? 0.6 : 0.7 + r() * 0.6); }
+    // Bordures de piste, par tronçons
+    if (th.border !== 'none') for (let zz = z0 - 4; zz > z1 + 30; zz -= 34) for (const side of [-1, 1]) if (r() < (th.border === 'lamps' ? 1 : 0.65)) put(P.border(th.border, 24), side * (L.opt.half + 1.6), zz, 0, 0);
+    // Vaches (prairie) et grands monuments du monde
+    if (th.cows) for (let k = 0; k < 4; k++) { const side = r() > 0.5 ? 1 : -1; const x0 = side * (L.opt.half + 10 + r() * 18), zc = z0 - r() * CHUNK; for (let q = 0; q < 2 + Math.floor(r() * 3); q++) put(A.cow(1), x0 + (r() - 0.5) * 8, zc + (r() - 0.5) * 8); }
+    if (i % 2 === 0 && th.landmark.length) { const side = r() > 0.5 ? 1 : -1; const name = th.landmark[Math.floor(r() * th.landmark.length)]; const o = makeProp(name, name === 'volcano' ? 2.2 : name === 'rainbow' ? 2 : 1.2, r); put(o, side * (L.opt.half + (name === 'volcano' ? 70 : 26) + r() * 14), z0 - r() * CHUNK, name === 'rainbow' ? -1 : 0, side > 0 ? -Math.PI / 2 : Math.PI / 2); }
+    if (th.flowers) for (let k = 0; k < 10; k++) { const side = r() > 0.5 ? 1 : -1; const f = A.flowers(10, 4, 0, [0xF48FB1, 0xFFE27A, 0xFFFFFF, 0xB794F4][k % 4]); f.traverse(o => { o.castShadow = false; }); put(f, side * (L.opt.half + 3 + r() * 20), z0 - r() * CHUNK, 0.1); }
     yield;
     // Panneaux de distance tous les 250 m
     for (let d = 250; d < LEVEL_LENGTH; d += 250) if (-d <= z0 && -d > z1) put(A.sign(`${d} m`, 1.3), (d / 250) % 2 ? L.opt.half + 2.5 : -(L.opt.half + 2.5), -d, 0, 0);
-    // Arches au-dessus de la piste
-    for (const a of L.arches) if (a.z <= z0 && a.z > z1) { const m = A.arch(2 * L.opt.half + 4, a.color); put(m, 0, a.z, -0.2, 0); }
-    for (let k = 0; k < 40; k++) {
+    // Arches au-dessus de la piste (couleur du monde)
+    if (th.arch) for (const a of L.arches) if (a.z <= z0 && a.z > z1) { const m = A.arch(2 * L.opt.half + 4, th.arch === 'torii' ? 0xD63A2F : th.arch === 'neon' ? 0xFF2E88 : a.color); put(m, 0, a.z, -0.2, 0); }
+    // Touffes au sol (herbe, fleurs de lavande, algues…) : pas d'ombre (trop petites)
+    if (th.tufts) for (let k = 0; k < 40; k++) {
       const x = (r() - 0.5) * 2 * (L.opt.half - 1), z = z0 - r() * CHUNK;
       const tf = new THREE.Group();
-      for (let q = 0; q < 3; q++) { const cn = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.45 + r() * 0.3, 4), A.mat(T.tufts[(k + q) % 3])); cn.position.set((r() - 0.5) * 0.3, 0.2, (r() - 0.5) * 0.3); tf.add(cn); }
-      tf.position.set(x, L.ground(x, z, 1).h, z); deco.add(tf); // touffes d'herbe : pas d'ombre (trop petites)
+      for (let q = 0; q < 3; q++) { const cn = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.45 + r() * 0.3, 4), A.mat(th.tufts[(k + q) % th.tufts.length])); cn.position.set((r() - 0.5) * 0.3, 0.2, (r() - 0.5) * 0.3); tf.add(cn); }
+      tf.position.set(x, L.ground(x, z, 1).h, z); deco.add(tf);
     }
 
     const inChunk = (z) => z <= z0 && z > z1;
     for (const p of L.ramps) if (inChunk(p.z)) { const m = A.ramp(p.w, p.l, p.h, p.boost); m.position.set(p.x, L.ground(p.x, p.z, 1).h - 0.05, p.z); m.rotation.x = slope(L, p.x, p.z); deco.add(m); }
-    for (const p of L.plates) if (inChunk(p.z)) { const m = A.boostPad(p.w, p.l); m.position.set(p.x, L.ground(p.x, p.z, 1).h + 0.06, p.z); m.rotation.x = slope(L, p.x, p.z); deco.add(m); }
+    for (const p of L.plates) if (inChunk(p.z)) { const m = A.boostPad(p.w, p.l); m.position.set(p.x, L.ground(p.x, p.z, 1).h + 0.12, p.z); m.rotation.x = slope(L, p.x, p.z); deco.add(m); }
     for (const cn of L.coins) if (inChunk(cn.z) && !cn.taken) { const m = A.coin(cn.kind, cn.kind === 'gold' ? 1.1 : cn.kind === 'silver' ? 1 : 0.9); m.position.set(cn.x, L.ground(cn.x, cn.z, 1).h + 0.95, cn.z); m.userData.phase = cn.z * 0.3; m.userData.ref = cn; cn.mesh = m; g.add(m); this.coinMeshes.push(m); }
-    for (const o of L.obstacles) if (inChunk(o.z) && !o.own) { const m = o.kind === 'statue' ? T.statue() : A.rockShape(o.shape, o.seed, T.rocks); m.position.set(o.x, L.ground(o.x, o.z, 1).h - 0.05, o.z); m.rotation.y = o.rot; deco.add(m); }
+    for (const o of L.obstacles) if (inChunk(o.z) && !o.own) { const m = o.kind === 'statue' ? (L.theme.statue === 'statue' ? A.statue(1) : makeProp(L.theme.statue, STATUE_SCALE[L.theme.statue] ?? 1, A.rng(Math.abs(Math.floor(o.z * 13)) + 1))) : A.rockShape(o.shape, o.seed, L.theme.rock); m.position.set(o.x, L.ground(o.x, o.z, 1).h - 0.05, o.z); m.rotation.y = o.rot; deco.add(m); }
     yield;
     // Tout le décor immobile du tronçon devient quelques gros objets (un par matériau) : beaucoup moins d'ordres de dessin
     g.add(mergeStatic(deco));
     yield;
-    for (const b of L.props) if (inChunk(b.z) && !b.hit) { const m = b.kind === 'crate' ? A.crate(1) : T.breakable(); m.position.set(b.x, L.ground(b.x, b.z, 1).h, b.z); m.rotation.y = b.rot; b.mesh = m; g.add(m); }
+    for (const b of L.props) if (inChunk(b.z) && !b.hit) { const m = b.kind === 'crate' ? A.crate(1) : makeProp(L.theme.breakable || 'hayBlock', BREAK_SCALE[L.theme.breakable] ?? 1, A.rng(Math.abs(Math.floor(b.z * 7)) + 3)); /* objet cassable du monde */ m.position.set(b.x, L.ground(b.x, b.z, 1).h, b.z); m.rotation.y = b.rot; b.mesh = m; g.add(m); }
     for (const gm of L.gems) if (inChunk(gm.z) && !gm.taken) { const m = A.gem(1); const y = L.ground(gm.x, gm.z, 1).h + 1.4; m.position.set(gm.x, y, gm.z); m.userData.y = y; m.add(A.gemBeam()); gm.mesh = m; g.add(m); this.gemMeshes.push(m); }
   }
 
