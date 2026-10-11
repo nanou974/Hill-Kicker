@@ -29,7 +29,7 @@ export class World {
     const y0 = L.ground(0, 6, 1).h;
     this.start = new THREE.Group(); this.root.add(this.start);
     const plat = new THREE.Mesh(new THREE.BoxGeometry(9, 4, 9), A.mat(0x8A7A62)); plat.position.set(0, y0 - 1.75, 6); plat.receiveShadow = true; this.start.add(plat);
-    this.launcher = A.launcher(5.6, 3.4); this.launcher.position.set(0, y0 + 0.3, 6); this.start.add(this.launcher);
+    this.launcherY = y0; this.setLauncherTier(0);
     this.launcherTop = y0 + 0.92;
     // Arche d'arrivée
     const zf = -LEVEL_LENGTH, yf = L.ground(0, zf, 1).h;
@@ -48,6 +48,13 @@ export class World {
     lineGeo.computeVertexNormals();
     const line = new THREE.Mesh(lineGeo, new THREE.MeshStandardMaterial({ map: ck, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2 })); line.receiveShadow = true; gate.add(line);
     gate.position.set(0, yf, zf); gate.traverse(o => { if (o.isMesh) o.castShadow = true; }); this.root.add(gate);
+  }
+
+  // Lanceur à l'image du palier d'amélioration (0 à 5)
+  setLauncherTier(t) {
+    if (this.launcher && this.launcherTierNow === t) return;
+    if (this.launcher) { this.start.remove(this.launcher); this.launcher.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
+    this.launcher = A.launcher(5.6, 3.4, undefined, t); this.launcher.position.set(0, this.launcherY + 0.3, 6); this.start.add(this.launcher); this.launcherTierNow = t;
   }
 
   // Colline rocheuse qui sépare les deux chemins d'une bifurcation

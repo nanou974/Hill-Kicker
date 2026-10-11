@@ -76,13 +76,15 @@ function buildLevel() {
   if (world) world.dispose();
   layout = makeLayout(eco.s.level, eco.s.gemsTaken);
   world = new World(scene, layout);
+  world.setLauncherTier(A.tierOf(eco.s.up.lanceur));
   placeCarOnLauncher();
 }
 function buildCarMesh() {
   if (carMesh) scene.remove(carMesh);
   const key = eco.s.car;
   const up = eco.s.up;
-  carMesh = A.car(key, { upgraded: key === 'citadine' && (up.pneus + up.susp) >= 3 });
+  carMesh = A.car(key, { tiers: { pneus: up.pneus, susp: up.susp } }); // paliers visuels toutes les 5 améliorations
+  if (world) world.setLauncherTier(A.tierOf(up.lanceur));
   carMesh.rotation.order = 'YXZ';
   carHeight = new THREE.Box3().setFromObject(carMesh).getSize(new THREE.Vector3()).y;
   scene.add(carMesh);
@@ -130,7 +132,14 @@ function refreshHome() {
       <span class="pips">${[0, 1, 2, 3, 4].map(i => `<i class="${i < on ? 'on' : ''}"></i>`).join('')}</span>
       <button type="button" class="btn ${u.key === 'mult' ? 'brown' : 'blue'}">AMÉLIORER<br><span class="cost"><svg class="ico s"><use href="#i-coin"/></svg>${fmt(cost)}</span></button>`;
     const b = el.querySelector('button'); b.disabled = s.yellow < cost;
-    b.addEventListener('click', () => { if (eco.buy(u.key)) { sfx.buy(); buildCarMesh(); placeCarOnLauncher(); refreshHome(); } });
+    b.addEventListener('click', () => {
+      if (!eco.buy(u.key)) return;
+      // Nouveau palier visuel (toutes les 5 améliorations) : fanfare et carte qui s'illumine
+      const tierUp = u.key !== 'mult' && s.up[u.key] % A.TIER_STEP === 0 && A.tierOf(s.up[u.key]) <= 5;
+      tierUp ? sfx.win() : sfx.buy();
+      buildCarMesh(); placeCarOnLauncher(); refreshHome();
+      if (tierUp) { const c = $('cards').children[UPGRADES.indexOf(u)]; if (c) { c.classList.add('tierup'); c.insertAdjacentHTML('beforeend', `<span class="tiertag">PALIER ${A.tierOf(s.up[u.key])} !</span>`); } }
+    });
     cards.appendChild(el);
   }
 }

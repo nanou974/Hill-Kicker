@@ -179,8 +179,23 @@ function appIcon() {
   renderer.render(scene, camera);
 }
 
+// Palier d'amélioration : véhicule (paliers pneus / suspensions) posé sur le lanceur (palier lanceur)
+function tierShot(key, t) {
+  const { renderer, scene, camera, sun } = L.setup(W, H, { alpha: true, fov: 30, hemi: 1.4, sun: 2.2, exposure: 1.1 });
+  const n = t * L.TIER_STEP;
+  const ln = L.launcher(5.6, 3.4, undefined, t); scene.add(ln);
+  const c = L.car(key, { tiers: { pneus: n, susp: n } }); c.position.set(0, 0.92 - 0.3, -0.2); scene.add(c);
+  const sh = new THREE.Mesh(new THREE.CircleGeometry(8, 40), new THREE.ShadowMaterial({ opacity: 0.25 })); sh.rotation.x = -Math.PI / 2; sh.receiveShadow = true; scene.add(sh);
+  const ctr = new THREE.Vector3(0, 1.1, 0);
+  camera.position.set(-9.5, 6.2, -9.5); camera.lookAt(ctr);
+  sun.position.set(-6, 14, -4); sun.target.position.copy(ctr);
+  sun.shadow.camera.left = -8; sun.shadow.camera.right = 8; sun.shadow.camera.top = 8; sun.shadow.camera.bottom = -8; sun.shadow.camera.updateProjectionMatrix();
+  renderer.render(scene, camera);
+}
+
 try {
-  if (name === 'launch') launchScene('charge');
+  if (name === 'tier') tierShot(q.get('car') || 'citadine', +q.get('t') || 0);
+  else if (name === 'launch') launchScene('charge');
   else if (name === 'launch100') launchScene('max');
   else if (name === 'faux') launchScene('faux');
   else if (name === 'course') courseScene();

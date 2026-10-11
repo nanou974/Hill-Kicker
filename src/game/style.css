@@ -162,3 +162,9 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 /* Compteur d'images par seconde */
 .fps { position: absolute; left: 50%; transform: translateX(-50%); top: calc(2px + env(safe-area-inset-top)); z-index: 30; padding: 1px 8px; border-radius: 8px; background: rgba(11,20,40,0.6); font-family: 'Nunito', monospace; font-weight: 900; font-size: 12px; pointer-events: none; }
 .fps.low { color: #FF8A8F; }
+
+/* Nouveau palier d'amélioration */
+.card.tierup { animation: tierup 1.2s ease-out; }
+@keyframes tierup { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,225,77,0.9); } 30% { transform: scale(1.08); box-shadow: 0 0 22px 8px rgba(255,225,77,0.9); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,225,77,0); } }
+.card .tiertag { position: absolute; left: 50%; top: -16px; transform: translateX(-50%) rotate(-4deg); white-space: nowrap; font-size: 15px; color: #FFE14D; -webkit-text-stroke: 1px var(--ink); text-shadow: 0 2px 0 var(--ink); animation: tiertag 2.2s ease-out forwards; pointer-events: none; }
+@keyframes tiertag { 0% { opacity: 0; transform: translateX(-50%) translateY(10px) rotate(-4deg); } 15% { opacity: 1; transform: translateX(-50%) translateY(0) rotate(-4deg); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%) translateY(-12px) rotate(-4deg); } }
