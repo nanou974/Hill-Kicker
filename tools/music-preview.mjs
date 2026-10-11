@@ -17,16 +17,17 @@ await page.goto('http://localhost:8770/tools/render/index.html?s=none');
 page.on('console', m => console.log(m.text()));
 const b64 = await page.evaluate(async () => {
   const { Music } = await import('/src/game/music.js');
-  const STEP = 60 / 128 / 4, total = 2 * 16 * 16, steps = total + 4, sr = 44100; // les deux morceaux à la suite
-  const ctx = new OfflineAudioContext(2, Math.ceil((steps * STEP + 1.5) * sr), sr);
-  const m = new Music({ ctx, master: ctx.destination });
-  m.build(ctx, ctx.destination); m.out.gain.value = 0.9;
-  m.lead = true;
-  for (let i = 0; i < total; i++) { m.playStep(m.step, 0.05 + i * STEP); m.advance(); }
-  m.kick(0.05 + total * STEP, 1);
-  const buf = await ctx.startRendering();
+  // Même pré-calcul que dans le jeu : morceau 1 puis morceau 2, piste principale + arpège (comme en course)
+  const m = new Music({ ctx: null, master: null, volumes: { music: 1 } }, true);
+  const parts = [];
+  for (let i = 0; i < 2; i++) { const a = await m.renderPart(i, 'main'), b = await m.renderPart(i, 'arp'); parts.push({ a: a.buf, b: b.buf, loop: a.loop }); }
+  const sr = parts[0].a.sampleRate, total = parts.reduce((t, p) => t + p.loop, 0) + 1.5;
+  const n0 = Math.ceil(total * sr), mixL = new Float32Array(n0);
+  let off = 0;
+  for (const p of parts) { const A = p.a.getChannelData(0), B = p.b.getChannelData(0), o = Math.round(off * sr); for (let i = 0; i < A.length && o + i < n0; i++) mixL[o + i] += A[i] + B[i]; off += p.loop; }
+  const buf = { length: n0, getChannelData: () => mixL }; 
   // Encodage WAV 16 bits stéréo
-  const n = buf.length, L = buf.getChannelData(0), R = buf.getChannelData(1), ab = new ArrayBuffer(44 + n * 4), v = new DataView(ab);
+  const n = buf.length, L = buf.getChannelData(0), R = buf.getChannelData(0), ab = new ArrayBuffer(44 + n * 4), v = new DataView(ab);
   const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
   w(0, 'RIFF'); v.setUint32(4, 36 + n * 4, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 2, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 4, true); v.setUint16(32, 4, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 4, true);
   let peak = 0; for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(L[i]), Math.abs(R[i]));

@@ -16,6 +16,7 @@ copy('src', 'src');
 copy('assets/renders/vehicules', 'assets/renders/vehicules');
 copy('assets/renders/icones', 'assets/renders/icones');
 copy('assets/icon', 'assets/icon');
+copy('assets/music', 'assets/music'); // musique pré-calculée (OGG)
 
 // Three.js et les deux modules complémentaires utilisés
 for (const f of ['build/three.module.js', 'build/three.core.js', 'examples/jsm/environments/RoomEnvironment.js', 'examples/jsm/utils/BufferGeometryUtils.js']) {

@@ -22,7 +22,8 @@ export class Sound {
   init() {
     if (this.ctx) return;
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
-    this.ctx = new AC();
+    // latence « lecture » : tampon audio plus grand, beaucoup moins sensible aux à-coups du jeu
+    try { this.ctx = new AC({ latencyHint: 'playback' }); } catch (e) { this.ctx = new AC(); }
     // master : sortie générale ; sfxBus : effets sonores et moteur (la musique a son propre bus, voir music.js)
     this.master = this.ctx.createGain(); this.master.gain.value = 1;
     this.master.connect(this.ctx.destination);
@@ -49,8 +50,15 @@ export class Sound {
   noise(dur, vol = 0.2, freq = 800, when = 0) {
     if (!this.ctx) return;
     const t = this.ctx.currentTime + when;
-    const len = Math.floor(this.ctx.sampleRate * dur), buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate), d = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    // Bruit décroissant mis en cache par durée : on ne le recalcule pas à chaque effet (évite les à-coups)
+    this.noiseCache ??= new Map();
+    const key = Math.round(dur * 100);
+    let buf = this.noiseCache.get(key);
+    if (!buf) {
+      const len = Math.floor(this.ctx.sampleRate * dur); buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate); const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+      this.noiseCache.set(key, buf);
+    }
     const s = this.ctx.createBufferSource(), f = this.ctx.createBiquadFilter(), g = this.ctx.createGain();
     s.buffer = buf; f.type = 'bandpass'; f.frequency.value = freq; g.gain.value = vol;
     s.connect(f).connect(g).connect(this.sfxBus); s.start(t);

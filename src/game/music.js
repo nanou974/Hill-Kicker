@@ -75,12 +75,19 @@ const SONG2 = {
 };
 // Les morceaux s'enchaînent à chaque fin de boucle (environ 30 s chacun)
 const SONGS = [SONG1, SONG2];
+export const SONG_COUNT = SONGS.length;
+
+const RENDER_RATE = 32000; // fréquence d'échantillonnage des morceaux pré-calculés (largement suffisante, moins de mémoire)
 
 export class Music {
-  constructor(sound) {
-    this.sound = sound; this.out = null; this.timer = null; this.step = 0; this.next = 0; this.song = 0;
+  // offline : instance utilisée pour pré-calculer un morceau (pas de lecture, pas d'écouteurs)
+  constructor(sound, offline = false) {
+    this.sound = sound; this.out = null; this.song = 0;
     this.lead = false;      // arpège actif (pendant la course)
-    // volume de la musique (0 à 1), partagé avec les réglages du son
+    this.only = null;       // pré-calcul : 'main' (tout sauf l'arpège) ou 'arp' (l'arpège seul)
+    this.buffers = [];      // morceaux pré-calculés : { main, arp, loop } pour chaque morceau
+    this.playing = null;    // lecture en cours : sources, morceau, heure de début
+    if (offline) return;
     // Pause quand l'appli passe en arrière-plan
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.stop(); else this.start(); });
   }
@@ -89,9 +96,13 @@ export class Music {
   setVolume(v) {
     this.sound.volumes.music = v; this.sound.saveVolumes();
     if (v <= 0) { this.stop(); return; }
-    if (!this.timer) this.start(); else if (this.out) this.out.gain.setTargetAtTime(0.3 * v, this.sound.ctx.currentTime, 0.05);
+    if (!this.playing) this.start(); else if (this.out) this.out.gain.setTargetAtTime(0.3 * v, this.sound.ctx.currentTime, 0.05);
   }
-  setLead(on) { this.lead = on; }
+  // L'arpège entre et sort en fondu (piste séparée lue en même temps que le reste)
+  setLead(on) {
+    this.lead = on;
+    if (this.arpGain && this.sound.ctx) this.arpGain.gain.setTargetAtTime(on ? 1 : 0, this.sound.ctx.currentTime, 0.15);
+  }
   // Crée les bus de mixage (une seule fois)
   build(ctx, dest) {
     this.out = ctx.createGain(); this.out.gain.value = 0.0001;
@@ -109,48 +120,94 @@ export class Music {
     this.noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.5), ctx.sampleRate);
     const d = this.noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   }
+
+  // ---------- Pré-calcul : chaque morceau est rendu une fois en fichier audio, hors du fil du jeu ----------
+  // Ainsi, un ralentissement du jeu (décor à préparer, mémoire à nettoyer…) ne peut plus hacher la musique.
+  async renderPart(index, only) {
+    const loop = SONGS[index].bars.length * 16 * STEP, tail = 1.5;
+    const off = new OfflineAudioContext(1, Math.ceil((loop + tail) * RENDER_RATE), RENDER_RATE);
+    const m = new Music({ ctx: off, master: off.destination, volumes: { music: 1 } }, true);
+    m.build(off, off.destination); m.out.gain.value = 1; m.song = index; m.only = only; m.lead = true;
+    const n = SONGS[index].bars.length * 16;
+    for (let i = 0; i < n; i++) m.playStep(i, i * STEP);
+    return { buf: await off.startRendering(), loop };
+  }
+  // Charge les morceaux : fichiers OGG fournis avec le jeu (assets/music, générés par tools/music-export.mjs),
+  // ou à défaut pré-calcul sur l'appareil
+  async loadPart(index, only) {
+    const loop = SONGS[index].bars.length * 16 * STEP;
+    try {
+      const r = await fetch(`assets/music/song${index}-${only}.ogg`); if (!r.ok) throw new Error('absent');
+      const buf = await this.sound.ctx.decodeAudioData(await r.arrayBuffer());
+      return { buf, loop, gain: 2 }; // fichiers exportés à mi-volume (marge) : on remonte ×2
+    } catch (e) { const p = await this.renderPart(index, only); return { ...p, gain: 1 }; }
+  }
+  async prepare() {
+    if (this.preparing) return this.preparing;
+    this.preparing = (async () => {
+      for (let i = 0; i < SONGS.length; i++) {
+        const main = await this.loadPart(i, 'main'), arp = await this.loadPart(i, 'arp');
+        this.buffers[i] = { main: main.buf, arp: arp.buf, loop: main.loop, gain: main.gain };
+        if (i === 0) this.start(); // le premier morceau démarre dès qu'il est prêt
+      }
+    })();
+    return this.preparing;
+  }
+
   start() {
     const ctx = this.sound.ctx;
-    if (this.volume <= 0 || !ctx || this.timer || document.hidden) return;
-    if (!this.out) this.build(ctx, this.sound.master);
+    if (this.volume <= 0 || !ctx || this.playing || document.hidden) return;
+    if (!this.buffers[0]) { this.prepare(); return; }
+    if (!this.out) { this.out = ctx.createGain(); this.out.gain.value = 0.0001; this.out.connect(this.sound.master); this.arpGain = ctx.createGain(); this.arpGain.gain.value = this.lead ? 1 : 0; this.arpGain.connect(this.out); }
+    this.out.gain.cancelScheduledValues(ctx.currentTime);
     this.out.gain.setTargetAtTime(0.3 * this.volume, ctx.currentTime, 0.4);   // fondu d'entrée
-    this.next = ctx.currentTime + 0.08;
-    this.timer = setInterval(() => this.schedule(), 25);
+    this.playSong(this.song, ctx.currentTime + 0.05);
+  }
+  // Lance un morceau à l'heure exacte "when" et programme l'enchaînement avec le suivant (calé à l'échantillon près)
+  playSong(index, when) {
+    const ctx = this.sound.ctx, b = this.buffers[index];
+    if (!b) { index = 0; }
+    const bb = this.buffers[index];
+    const main = ctx.createBufferSource(), arp = ctx.createBufferSource(), g = ctx.createGain(), ga = ctx.createGain();
+    main.buffer = bb.main; arp.buffer = bb.arp; g.gain.value = ga.gain.value = bb.gain ?? 1;
+    main.connect(g).connect(this.out); arp.connect(ga).connect(this.arpGain);
+    main.start(when); arp.start(when);
+    const p = { sources: [main, arp], index, when, end: when + bb.loop };
+    this.playing = p; this.song = index;
+    // Le morceau suivant est programmé 2 s avant la fin : même si le jeu ralentit, il partira pile à l'heure
+    const next = (index + 1) % SONGS.length;
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => { if (this.playing === p) this.playSong(this.buffers[next] ? next : index, p.end); }, Math.max(0, (p.end - ctx.currentTime - 2) * 1000));
   }
   stop() {
-    if (this.timer) { clearInterval(this.timer); this.timer = null; }
-    if (this.out && this.sound.ctx) this.out.gain.setTargetAtTime(0.0001, this.sound.ctx.currentTime, 0.1);
-  }
-  // Programme les notes des 120 prochaines millisecondes
-  schedule() {
+    clearTimeout(this.timer); this.timer = null;
     const ctx = this.sound.ctx;
-    if (!ctx || ctx.state !== 'running') return;
-    if (this.next < ctx.currentTime - 0.2) this.next = ctx.currentTime + 0.05; // rattrapage après une pause
-    while (this.next < ctx.currentTime + 0.12) { this.playStep(this.step, this.next); this.advance(); this.next += STEP; }
-  }
-  // Pas suivant ; en fin de boucle, on passe au morceau suivant
-  advance() {
-    this.step++;
-    if (this.step >= SONGS[this.song].bars.length * 16) { this.step = 0; this.song = (this.song + 1) % SONGS.length; }
+    if (this.playing && ctx) {
+      const t = ctx.currentTime;
+      this.out.gain.cancelScheduledValues(t); this.out.gain.setTargetAtTime(0.0001, t, 0.08);
+      for (const s of this.playing.sources) { try { s.stop(t + 0.4); } catch (e) { /* déjà arrêtée */ } }
+    }
+    this.playing = null;
   }
   playStep(i, t) {
     const song = SONGS[this.song], bar = Math.floor(i / 16), s = i % 16, ch = CHORDS[song.bars[bar]];
     const partB = bar >= 8, lastBar = bar % 4 === 3;
     // Grosse caisse : 4 temps + relances ; la dernière mesure de chaque phrase laisse place au roulement
     const kicks = partB ? song.kickB : song.kickA;
+    if (this.only === 'arp') { if (s % 2 === 1) this.arp(mtof(ch.arp[((s - 1) / 2) % 4] + 12), t, STEP * 1.4, (bar % 4) / 3); return; }
     if (kicks.has(s) && !(lastBar && s >= 12)) this.kick(t, s % 4 === 0 ? 1 : 0.75);
     // Caisse claire + clap sur 2 et 4, notes fantômes, roulement en doubles croches en fin de phrase
     if (s === 4 || s === 12) { this.snare(t, 0.5); this.clap(t); }
     else if (s === 7 || s === 15 || (partB && s === 10)) this.snare(t, 0.12);
     if (lastBar && s >= 12) this.snare(t, 0.18 + (s - 12) * 0.08);
-    if (lastBar && bar === song.bars.length - 1 && s === 15) this.crashFx(t + STEP);
+    if (lastBar && bar === song.bars.length - 1 && s === 15) this.crashFx(t + STEP); // cymbale de transition (dans la traîne du morceau)
     // Charleston en doubles croches, ouvert sur les contretemps
     if (s % 4 === 2) this.hat(t, 0.06, 0.14); else this.hat(t, s % 2 ? 0.018 : 0.03, 0.035);
     // Basse : croches syncopées, fondamentale / octave / quinte, notes tenues
     for (const [st, iv, len] of song.bass) if (st === s) this.bass(mtof(ch.bass + 12 + iv), t, STEP * len * 0.95, s % 4 === 0);
     // Mélodie (toujours) et arpège discret pendant la course
     for (const [st, n, len] of song.melody[bar]) if (st === s) this.melody(mtof(n), t, STEP * len * 0.95);
-    if (this.lead && s % 2 === 1) this.arp(mtof(ch.arp[((s - 1) / 2) % 4] + 12), t, STEP * 1.4, (bar % 4) / 3);
+    if (this.only !== 'main' && this.lead && s % 2 === 1) this.arp(mtof(ch.arp[((s - 1) / 2) % 4] + 12), t, STEP * 1.4, (bar % 4) / 3);
   }
 
   // ---------- instruments ----------

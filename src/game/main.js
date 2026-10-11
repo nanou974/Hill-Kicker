@@ -463,6 +463,6 @@ setScreen('home');
 refreshHome();
 requestAnimationFrame(frame);
 // Outils de test : avance rapide de la course
-window.__hk = { eco, get car() { return car; }, get layout() { return layout; }, get state() { return state; }, get camera() { return camera; }, get world() { return world; }, get carMesh() { return carMesh; }, simulate(sec) { for (let t = 0; t < sec && state === 'run'; t += 1 / 30) runStep(1 / 30); },
+window.__hk = { eco, get car() { return car; }, get layout() { return layout; }, get state() { return state; }, get camera() { return camera; }, get world() { return world; }, get carMesh() { return carMesh; }, music, sfx, simulate(sec) { for (let t = 0; t < sec && state === 'run'; t += 1 / 30) runStep(1 / 30); },
   // Outil de test : fige la course (la caméra continue de suivre la voiture)
   freeze: false };
