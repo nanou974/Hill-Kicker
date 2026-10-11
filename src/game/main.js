@@ -431,7 +431,7 @@ function frame(now) {
 
 // ---------- garage ----------
 let gSel = null;
-function openGarage() { gSel = eco.s.car; renderGarage(); show('s-garage', true); }
+function openGarage() { gSel = eco.s.car; $('g-grid').scrollTop = 0; renderGarage(); show('s-garage', true); }
 function renderGarage() {
   const s = eco.s; $('v-gblue').textContent = fmt(s.blue);
   $('v-gname').textContent = A.CARS[gSel].name; $('v-ghero').src = `assets/renders/vehicules/t_${gSel}.png`;
@@ -439,7 +439,7 @@ function renderGarage() {
   if (s.car === gSel) { act.textContent = 'SÉLECTIONNÉ'; act.disabled = true; }
   else if (owned) { act.textContent = 'CHOISIR'; act.disabled = false; }
   else { act.innerHTML = `ACHETER <svg class="ico s"><use href="#i-blue"/></svg>${fmt(VEHICLE_PRICES[gSel])}`; act.disabled = s.blue < VEHICLE_PRICES[gSel]; }
-  const grid = $('g-grid'); grid.innerHTML = '';
+  const grid = $('g-grid'), keep = grid.scrollTop; grid.innerHTML = '';
   for (const k of A.ORDER) {
     const own = s.cars.includes(k);
     const b = document.createElement('button'); b.type = 'button';
@@ -449,6 +449,7 @@ function renderGarage() {
     b.addEventListener('click', () => { gSel = k; renderGarage(); });
     grid.appendChild(b);
   }
+  grid.scrollTop = keep; // garde la position dans la liste quand on touche un véhicule
 }
 $('b-garage').addEventListener('click', openGarage);
 $('b-garageclose').addEventListener('click', () => { show('s-garage', false); refreshHome(); });
