@@ -24,8 +24,25 @@ function canvasTex(w, h, draw) {
 export function heightAt(x, z, opt = {}) {
   const slope = opt.slope ?? 0.14;
   let h = z * slope; // forward = -z, goes down
-  h += Math.sin(z * 0.045) * 2.2 + Math.sin(z * 0.11 + 1.3) * 0.9;
-  h += Math.sin(x * 0.07 + z * 0.02) * 0.6;
+  const R = opt.relief;
+  if (!R) {
+    h += Math.sin(z * 0.045) * 2.2 + Math.sin(z * 0.11 + 1.3) * 0.9;
+    h += Math.sin(x * 0.07 + z * 0.02) * 0.6;
+  } else {
+    // Relief propre au monde du niveau (src/game/tracks.js)
+    for (const w of R.waves) h += Math.sin(z * w[1] + w[2]) * w[0];
+    h += Math.sin(x * 0.07 + z * 0.02) * (R.cross ?? 0.6);
+    // Dunes en biais : la crête traverse la piste de travers, la voiture penche
+    if (R.dunes) { const u = Math.sin(z * R.dunes[1] + x * 0.035 + Math.sin(x * 0.05) * 1.2); h += R.dunes[0] * u * Math.abs(u); }
+    // Bosses serrées (racines, bosses de terrain) : elles freinent si la suspension est faible
+    if (R.bumps) h += R.bumps * Math.sin(z * 0.34) * (0.6 + 0.4 * Math.sin(x * 0.19 + z * 0.07));
+    // Terrasses : un replat presque plat puis une descente raide (paliers d'un escalier géant)
+    if (R.terraces) {
+      const P = R.terraces[0], t = -z / P + 0.62, f = t - Math.floor(t); // le départ tombe juste avant une descente
+      const drop = Math.min(1, Math.max(0, (f - 0.7) / 0.3)), sm = drop * drop * (3 - 2 * drop);
+      h += slope * P * R.terraces[1] * (f - sm);
+    }
+  }
   const ax = Math.abs(x);
   const half = opt.half ?? 16;
   if (ax > half) { const d = ax - half; h += Math.min(d * 0.22, 9) + Math.max(0, d - 40) * 0.25 + Math.sin(d * 0.15 + z * 0.05) * Math.min(d * 0.06, 2.5); }

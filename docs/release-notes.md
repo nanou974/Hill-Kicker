@@ -1,14 +1,12 @@
-Dix mondes !
+Chaque monde a maintenant sa propre piste !
 
 ## Installer / mettre à jour
-Télécharge `HillKicker-v0.11.0.apk` ci-dessous et ouvre-le : il s'installe par-dessus la version précédente, ta progression est conservée.
+Télécharge `HillKicker-v0.12.0.apk` ci-dessous et ouvre-le : il s'installe par-dessus la version précédente, ta progression est conservée.
 
 ## Nouveautés
-Cinq nouveaux mondes, du niveau 6 au niveau 10 :
-- **Canyons du désert** : buttes rocheuses rouges, arches de pierre, cactus. Sur la piste : des saguaros à éviter et des tonneaux à casser.
-- **Ville fantôme du Far West** : rue bordée de façades en bois, château d'eau, voie ferrée abandonnée, tombes et roues de chariot. Sur la piste : piles de tonneaux et virevoltants. Les zones rapides sont des trottoirs en planches.
-- **Jungle** : grands arbres à lianes, bambous, fougères, fleurs géantes et cascades. Sur la piste : de grosses souches. Les zones rapides sont des ponts en planches.
-- **Temples aztèques** : pyramides à degrés, têtes de pierre géantes, allées de stèles. Sur la piste : des idoles sculptées et des jarres. Les zones rapides sont dallées.
-- **Bayou brumeux** : brume plus épaisse, cyprès couverts de mousse, cabanes sur pilotis, barques, roseaux et nénuphars. Les zones rapides sont des pontons.
+- **La piste tourne** : virages à gauche, à droite et en S. Dans un virage, la voiture glisse vers l'extérieur, d'autant plus vite qu'elle va vite : il faut contre-braquer. Des panneaux à chevrons annoncent chaque virage et des bordures rouges et blanches suivent les bords de la piste.
+- **Un relief par monde** : collines douces dans la prairie, longues vagues dans la lavande, pente bosselée en forêt, petites dunes à la plage, grandes houles dans la savane, dunes en biais dans le désert, terrasses au Far West, escaliers géants aux temples aztèques, piste presque plate au bayou.
+- **Des obstacles typiques** : chaque monde a ses passages étroits (gorges au désert, grottes dans la jungle, ruines aux temples…), des troncs couchés en forêt, dans la jungle et au bayou, et des zones qui freinent (sable mouillé, sable mou, boue, eau).
+- **Plus long, plus dur** : le niveau 1 fait 3 000 m, puis chaque niveau ajoute 60 m (jusqu'à 4 500 m), avec un peu plus d'obstacles et des virages un peu plus serrés. Quand le jeu repart au premier monde, la piste reste plus longue et plus difficile qu'au premier tour.
 
-Après le 10e monde, le jeu repart au premier pour un nouveau tour.
+Les niveaux déjà commencés changent de tracé : la progression (niveau, monnaies, améliorations) est conservée.

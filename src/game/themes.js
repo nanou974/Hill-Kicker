@@ -1,8 +1,9 @@
 // Mondes du jeu : chaque niveau a son paysage (ciel, couleurs du terrain, décor, objets sur la piste).
 // Après le dernier monde, le jeu recommence au premier (niveau 21 = monde 1, etc.) : il n'y a pas de fin.
-// Seule l'apparence change : le relief, la physique et l'économie restent ceux du niveau.
+// Le relief, les virages et les obstacles typiques de chaque monde sont dans tracks.js (même ordre que THEMES).
 import * as THREE from 'three';
 import * as A from '../assets3d.js';
+import { TRACKS } from './tracks.js';
 
 // ---------- matériaux partagés (un seul matériau par couleur : le décor fusionné en profite) ----------
 const mats = new Map();
@@ -800,6 +801,9 @@ export const THEMES = [
   },
   ...THEMES_B,
 ];
+
+// Chaque monde a son profil de piste dans tracks.js : les deux listes doivent avoir la même longueur
+if (THEMES.length !== TRACKS.length) console.warn(`themes.js : ${THEMES.length} mondes mais ${TRACKS.length} profils de piste dans tracks.js`);
 
 // Monde d'un niveau : après le dernier, on recommence au premier
 export const themeIndex = (level) => (Math.max(1, level) - 1) % THEMES.length;

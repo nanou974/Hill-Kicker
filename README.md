@@ -19,6 +19,7 @@ Le document de conception complet est dans [docs/GDD.md](docs/GDD.md).
 | Boucle de jeu jouable (prototype) | Faite : lanceur, course, cascades, booster, pièces, résultats, coffre, vies, améliorations, garage |
 | Sons (moteur, pièces, boosts, cascades) | Faits |
 | Mondes (paysages par niveau) | 10 sur 20 faits (`src/game/themes.js`) ; le jeu reboucle après le dernier |
+| Pistes par monde (relief, virages, obstacles typiques, zones lentes) | Faites pour les 10 mondes (`src/game/tracks.js`) ; longueur et difficulté qui montent avec le niveau |
 | Visuels par palier d'amélioration | À faire |
 
 ## Jouer
@@ -49,11 +50,11 @@ En local (avec le SDK Android installé) : `npm run build:app`, puis ouvrir `and
 
 ```
 index.html              Le jeu
-src/game/               Boucle de jeu : physique, monde, économie, interface, joystick
+src/game/               Boucle de jeu : physique, monde, pistes et virages (tracks.js, bend.js), économie, interface, joystick
 src/assets3d.js         Modèles low-poly procéduraux : 20 véhicules, terrain, arbres, lanceur, pièces, gemmes…
 preview/garage.html     Visionneuse 3D interactive des 20 véhicules
 tools/render/           Rendu headless des scènes et vignettes (Chromium + Three.js)
-tools/sim.mjs           Simulation de calibrage (distance par lancer, progression jusqu'à l'arrivée)
+tools/sim.mjs           Simulation de calibrage (distance par lancer, progression jusqu'à l'arrivée, niveau par niveau)
 tools/playtest*.mjs     Parties automatisées dans Chromium headless, avec captures
 assets/icon/            Icône de l'application
 assets/renders/         Rendus des scènes, des véhicules et des icônes d'amélioration

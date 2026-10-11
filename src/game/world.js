@@ -2,8 +2,8 @@
 // Les couleurs et le décor viennent du monde du niveau (themes.js).
 import * as THREE from 'three';
 import * as A from '../assets3d.js';
-import { LEVEL_LENGTH } from './layout.js';
 import { buildPassage } from './passages.js';
+import { noCull } from './bend.js';
 import { themeFor, pond } from './themes.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -17,8 +17,9 @@ export class World {
   constructor(scene, layout) {
     this.scene = scene; this.L = layout; this.T = themeFor(layout.level); this.chunks = new Map();
     this.root = new THREE.Group(); scene.add(this.root);
-    this.coinMeshes = []; this.gemMeshes = []; this.flying = [];
+    this.coinMeshes = []; this.gemMeshes = []; this.propMeshes = []; this.flying = [];
     this.buildStatic();
+    noCull(this.root);
   }
   dispose() { this.scene.remove(this.root); this.root.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
 
@@ -34,7 +35,7 @@ export class World {
     this.launcherY = y0; this.setLauncherTier(0);
     this.launcherTop = y0 + 0.92;
     // Arche d'arrivée
-    const zf = -LEVEL_LENGTH, yf = L.ground(0, zf, 1).h;
+    const zf = -L.length, yf = L.ground(0, zf, 1).h;
     const gate = new THREE.Group();
     const pm = A.mat(0xFFFFFF, { flat: false });
     // Poteaux de chaque côté de la piste, hors de la zone roulable
@@ -101,7 +102,7 @@ export class World {
     const ci = Math.floor(-carZ / CHUNK);
     this.pending ??= new Map();
     for (let i = ci - BEHIND; i <= ci + AHEAD; i++) {
-      if (i < -1 || this.chunks.has(i) || i * CHUNK >= LEVEL_LENGTH + CHUNK) continue;
+      if (i < -1 || this.chunks.has(i) || i * CHUNK >= this.L.length + CHUNK) continue;
       if (!this.pending.has(i)) { const g = new THREE.Group(); this.pending.set(i, { g, it: this.chunkSteps(i, g) }); }
       // Tronçon où se trouve la voiture (ou juste devant) : il doit exister tout de suite
       if (i <= ci + 1) this.finish(i, Infinity);
@@ -111,9 +112,11 @@ export class World {
     for (const i of [...this.pending.keys()].sort((a, b) => a - b)) { if (!this.finish(i, t0 + BUDGET_MS)) break; }
     for (const [i, g] of this.chunks) if (i < ci - BEHIND || i > ci + AHEAD) { this.root.remove(g); g.traverse(o => { if (o.geometry) o.geometry.dispose(); }); this.chunks.delete(i); }
     for (const i of [...this.pending.keys()]) if (i < ci - BEHIND || i > ci + AHEAD) this.pending.delete(i);
-    // Animation des pièces et gemmes
-    for (const m of this.coinMeshes) if (m.parent) { m.rotation.y = time * 2.4 + m.userData.phase; }
-    for (const m of this.gemMeshes) if (m.parent) { m.rotation.y = time * 1.6; m.position.y = m.userData.y + Math.sin(time * 2.5) * 0.15; if (m.children[0]) m.children[0].visible = m.position.z < carZ - 25; } // la colonne de lumière s'efface quand on arrive dessus
+    // Animation des pièces et gemmes ; ce qui est loin derrière la caméra n'est plus dessiné
+    const behind = carZ + 25;
+    for (const m of this.coinMeshes) if (m.parent) { m.visible = m.position.z < behind; if (m.visible) m.rotation.y = time * 2.4 + m.userData.phase; }
+    for (const m of this.propMeshes) if (m.parent) m.visible = m.position.z < behind;
+    for (const m of this.gemMeshes) if (m.parent) { m.visible = m.position.z < behind; m.rotation.y = time * 1.6; m.position.y = m.userData.y + Math.sin(time * 2.5) * 0.15; if (m.children[0]) m.children[0].visible = m.position.z < carZ - 25; } // la colonne de lumière s'efface quand on arrive dessus
     // Objets percutés : ils s'envolent en tournoyant puis disparaissent
     for (const f of this.flying) {
       f.t += dt; f.vy -= 9.81 * dt;
@@ -134,11 +137,11 @@ export class World {
   finish(i, deadline) {
     const p = this.pending.get(i); if (!p) return true;
     while (performance.now() < deadline) {
-      if (p.it.next().done) { this.root.add(p.g); this.chunks.set(i, p.g); this.pending.delete(i); return true; }
+      if (p.it.next().done) { noCull(p.g); this.root.add(p.g); this.chunks.set(i, p.g); this.pending.delete(i); return true; }
     }
     return false;
   }
-  buildChunk(i) { const g = new THREE.Group(); for (const _ of this.chunkSteps(i, g)); this.root.add(g); return g; }
+  buildChunk(i) { const g = new THREE.Group(); for (const _ of this.chunkSteps(i, g)); noCull(g); this.root.add(g); return g; }
 
   // Construction d'un tronçon en plusieurs étapes (générateur) : terrain, décor, fusion du décor, objets de la piste
   *chunkSteps(i, g) {
@@ -157,8 +160,10 @@ export class World {
       const n = hash(gx * 3, gz * 5) * 0.06, ax = Math.abs(x);
       const stripe = (Math.floor((gz * STEP) / 7) % 2) ? 0.05 : -0.02;
       const patch = Math.sin(x * 0.21 + z * 0.13) + Math.sin(x * 0.09 - z * 0.27 + 2) + Math.sin(z * 0.05 + x * 0.3);
-      const zone = L.isTarmac(x, z) ? 'tarmac' : ax < L.opt.half - 0.5 ? 'track' : ax < L.opt.half + 2 ? 'shoulder' : 'field';
-      T.ground(c, zone, x, z, n, stripe, patch);
+      const zone = L.isTarmac(x, z) ? 'tarmac' : ax < L.opt.half - 0.5 ? (L.isSlow(x, z) ? 'slow' : 'track') : ax < L.opt.half + 2 ? 'shoulder' : 'field';
+      // Sable mou, boue ou eau : couleur propre au monde (tracks.js), avec un peu de grain
+      if (zone === 'slow') { const sc = L.profile.slow.color, w = Math.sin(x * 1.3 + z * 0.9) * 0.03; c.setRGB(sc[0] + n + w, sc[1] + n + w, sc[2] + n * 0.5 + w, THREE.SRGBColorSpace); }
+      else T.ground(c, zone, x, z, n, stripe, patch);
       col.push(c.r, c.g, c.b);
     }
     for (let iz = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++) {
@@ -171,6 +176,7 @@ export class World {
     geo.setIndex(idx); geo = geo.toNonIndexed(); geo.computeVertexNormals();
     const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95, envMapIntensity: 0 }));
     mesh.receiveShadow = true; g.add(mesh);
+    g.add(kerbs(L, z0, z1));
     yield;
 
     // Décors sur les bas-côtés : construits dans un groupe à part, puis fusionnés en quelques gros objets
@@ -188,7 +194,7 @@ export class World {
     yield* T.decor({ put, r, L, z0, z1, i, deco, ground, pond: placePond });
     yield;
     // Panneaux de distance tous les 250 m
-    for (let d = 250; d < LEVEL_LENGTH; d += 250) if (-d <= z0 && -d > z1) put(A.sign(`${d} m`, 1.3), (d / 250) % 2 ? L.opt.half + 2.5 : -(L.opt.half + 2.5), -d, 0, 0);
+    for (let d = 250; d < L.length; d += 250) if (-d <= z0 && -d > z1) put(A.sign(`${d} m`, 1.3), (d / 250) % 2 ? L.opt.half + 2.5 : -(L.opt.half + 2.5), -d, 0, 0);
     // Arches au-dessus de la piste
     for (const a of L.arches) if (a.z <= z0 && a.z > z1) { const m = A.arch(2 * L.opt.half + 4, a.color); put(m, 0, a.z, -0.2, 0); }
     for (let k = 0; k < 40; k++) {
@@ -202,12 +208,22 @@ export class World {
     for (const p of L.ramps) if (inChunk(p.z)) { const m = A.ramp(p.w, p.l, p.h, p.boost); m.position.set(p.x, L.ground(p.x, p.z, 1).h - 0.05, p.z); m.rotation.x = slope(L, p.x, p.z); deco.add(m); }
     for (const p of L.plates) if (inChunk(p.z)) { const m = A.boostPad(p.w, p.l); m.position.set(p.x, L.ground(p.x, p.z, 1).h + 0.06, p.z); m.rotation.x = slope(L, p.x, p.z); deco.add(m); }
     for (const cn of L.coins) if (inChunk(cn.z) && !cn.taken) { const m = A.coin(cn.kind, cn.kind === 'gold' ? 1.1 : cn.kind === 'silver' ? 1 : 0.9); m.position.set(cn.x, L.ground(cn.x, cn.z, 1).h + 0.95, cn.z); m.userData.phase = cn.z * 0.3; m.userData.ref = cn; cn.mesh = m; g.add(m); this.coinMeshes.push(m); }
-    for (const o of L.obstacles) if (inChunk(o.z) && !o.own) { const m = o.kind === 'statue' ? T.statue() : A.rockShape(o.shape, o.seed, T.rocks); m.position.set(o.x, L.ground(o.x, o.z, 1).h - 0.05, o.z); m.rotation.y = o.rot; deco.add(m); }
+    for (const o of L.obstacles) if (inChunk(o.z) && !o.own) {
+      const m = o.kind === 'log' ? logMesh(o, L, T) : o.kind === 'statue' ? T.statue() : A.rockShape(o.shape, o.seed, T.rocks);
+      if (o.kind !== 'log') { m.position.set(o.x, L.ground(o.x, o.z, 1).h - 0.05, o.z); m.rotation.y = o.rot; }
+      deco.add(m);
+    }
+    // Panneaux de virage : chevrons sur le bord extérieur, à l'entrée de chaque virage
+    // (placés dans la première partie du virage : en arrivant, ils apparaissent droit devant, là où la piste tourne)
+    for (const t of L.curve.turns) for (let q = 0; q < 5; q++) {
+      const z = -(t.s0 + 10 + q * 24); if (!inChunk(z) || -z > t.s1) continue;
+      const x = -t.dir * (L.opt.half + 2.2); put(chevron(t.dir), x, z, 0, 0);
+    }
     yield;
     // Tout le décor immobile du tronçon devient quelques gros objets (un par matériau) : beaucoup moins d'ordres de dessin
     g.add(mergeStatic(deco));
     yield;
-    for (const b of L.props) if (inChunk(b.z) && !b.hit) { const m = b.kind === 'crate' ? A.crate(1) : T.breakable(); m.position.set(b.x, L.ground(b.x, b.z, 1).h, b.z); m.rotation.y = b.rot; b.mesh = m; g.add(m); }
+    for (const b of L.props) if (inChunk(b.z) && !b.hit) { const m = b.kind === 'crate' ? A.crate(1) : T.breakable(); m.position.set(b.x, L.ground(b.x, b.z, 1).h, b.z); m.rotation.y = b.rot; b.mesh = m; g.add(m); this.propMeshes.push(m); }
     for (const gm of L.gems) if (inChunk(gm.z) && !gm.taken) { const m = A.gem(1); const y = L.ground(gm.x, gm.z, 1).h + 1.4; m.position.set(gm.x, y, gm.z); m.userData.y = y; m.add(A.gemBeam()); gm.mesh = m; g.add(m); this.gemMeshes.push(m); }
   }
 
@@ -248,6 +264,61 @@ function mergeStatic(src) {
   // Objets à plusieurs matériaux : gardés tels quels, à leur place
   for (const o of alone) { o.matrixAutoUpdate = false; o.matrix.copy(o.matrixWorld); out.add(o); }
   return out;
+}
+
+// Bordures rouges et blanches le long des deux bords de la piste : on lit le tracé (et les virages) de loin
+const KERB_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, envMapIntensity: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+const KERB_SEG = 1.5, KERB_RED = new THREE.Color().setRGB(0.86, 0.16, 0.16, THREE.SRGBColorSpace), KERB_WHITE = new THREE.Color().setRGB(0.96, 0.96, 0.94, THREE.SRGBColorSpace);
+function kerbs(L, z0, z1) {
+  const pos = [], col = [];
+  for (const side of [-1, 1]) {
+    const xi = side * (L.opt.half - 0.3), xo = side * (L.opt.half + 1.1);
+    for (let z = z0; z > z1 + 0.01; z -= KERB_SEG) {
+      const za = z, zb = Math.max(z1, z - KERB_SEG), c = Math.floor(-za / (KERB_SEG * 2)) % 2 ? KERB_RED : KERB_WHITE;
+      const y = (x, zz) => L.ground(x, zz, 1).h + 0.07;
+      const q = [[xi, za], [xo, za], [xi, zb], [xo, zb]].map(([x, zz]) => [x, y(x, zz), zz]);
+      const tri = side > 0 ? [q[0], q[1], q[2], q[1], q[3], q[2]] : [q[0], q[2], q[1], q[1], q[2], q[3]]; // faces tournées vers le ciel
+      for (const v of tri) { pos.push(...v); col.push(c.r, c.g, c.b); }
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  geo.computeVertexNormals();
+  const m = new THREE.Mesh(geo, KERB_MAT); m.receiveShadow = true;
+  return m;
+}
+
+// Tronc couché en travers de la piste : posé sur le relief, avec ses deux sections claires et quelques branches cassées
+const LOG_COL = [0x6B4A2E, 0x5A3E26, 0x7A5634];
+function logMesh(o, L, T) {
+  const g = new THREE.Group(), r = A.rng(o.seed), len = o.w * 2;
+  const col = LOG_COL[o.seed % 3], bark = A.mat(col), ring = A.mat(0xD8B98A), moss = A.mat(T.tufts ? T.tufts[0] : 0x4F7A32);
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.62, len, 9), bark); trunk.rotation.z = Math.PI / 2; g.add(trunk);
+  for (const s of [-1, 1]) { const c = new THREE.Mesh(new THREE.CircleGeometry(0.52, 9), ring); c.position.x = s * (len / 2 + 0.01); c.rotation.y = s * Math.PI / 2; g.add(c); }
+  for (let k = 0; k < 3; k++) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.14, 1.1 + r() * 0.6, 5), bark); b.position.set((r() - 0.5) * len * 0.8, 0.5, (r() - 0.5) * 0.4); b.rotation.set((r() - 0.5) * 1.2, 0, (r() - 0.5) * 1.4); g.add(b); }
+  for (let k = 0; k < 4; k++) { const m = new THREE.Mesh(new THREE.SphereGeometry(0.28 + r() * 0.2, 6, 4), moss); m.scale.y = 0.45; m.position.set((r() - 0.5) * len * 0.9, 0.52, (r() - 0.5) * 0.5); g.add(m); }
+  // Le tronc suit la pente sous lui (hauteur aux deux bouts)
+  const ya = L.ground(o.x - o.w * Math.cos(o.rot), o.z + o.w * Math.sin(o.rot), 1).h, yb = L.ground(o.x + o.w * Math.cos(o.rot), o.z - o.w * Math.sin(o.rot), 1).h;
+  g.position.set(o.x, (ya + yb) / 2 + 0.42, o.z); g.rotation.set(0, o.rot, Math.atan2(yb - ya, len));
+  g.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+  return g;
+}
+
+// Panneau de virage : chevrons blancs sur fond rouge, pointés vers l'intérieur du virage
+const chevronTex = {};
+function chevron(dir) {
+  if (!chevronTex[dir]) {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 128; const g = c.getContext('2d');
+    g.fillStyle = '#E5383B'; g.fillRect(0, 0, 256, 128); g.fillStyle = '#FFFFFF';
+    for (let i = 0; i < 3; i++) { const x0 = 40 + i * 64; g.beginPath(); if (dir > 0) { g.moveTo(x0, 16); g.lineTo(x0 + 22, 16); g.lineTo(x0 + 56, 64); g.lineTo(x0 + 22, 112); g.lineTo(x0, 112); g.lineTo(x0 + 34, 64); } else { g.moveTo(x0 + 56, 16); g.lineTo(x0 + 34, 16); g.lineTo(x0, 64); g.lineTo(x0 + 34, 112); g.lineTo(x0 + 56, 112); g.lineTo(x0 + 22, 64); } g.closePath(); g.fill(); }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; chevronTex[dir] = A.mat(0xffffff, { map: t });
+  }
+  const grp = new THREE.Group(), post = A.mat(0x2A2F38), side = A.mat(0xE5383B);
+  for (const s of [-0.8, 0.8]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.6, 6), post); p.position.set(s, 0.8, 0); grp.add(p); }
+  const board = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.1, 0.08), [side, side, side, side, chevronTex[dir], side]); board.position.y = 1.9; grp.add(board);
+  grp.traverse(m => { if (m.isMesh) m.castShadow = true; });
+  return grp;
 }
 
 function slope(L, x, z) { const e = 0.5; return Math.atan2(L.ground(x, z - e, 1).h - L.ground(x, z + e, 1).h, 2 * e); }

@@ -45,7 +45,9 @@ export function step(car, world, t, input, dt, events) {
   // On dirige la voiture au sol comme en l'air, même pendant les cascades
   const targetVx = input.steer * steerSpeed;
   car.vx += (targetVx - car.vx) * Math.min(1, dt * 6);
-  car.x += car.vx * dt;
+  // Virage : la voiture glisse vers l'extérieur, d'autant plus vite qu'elle roule vite (il faut contre-braquer)
+  car.drift = driftSpeed(world, car);
+  car.x += (car.vx + car.drift) * dt;
   if (Math.abs(car.x) > TRACK_HALF) { car.x = Math.sign(car.x) * TRACK_HALF; car.vx = 0; }
   // Colline d'une bifurcation : la percuter arrête net la voiture et termine la course
   // (sauf si la voiture la survole en sautant plus haut que la colline)
@@ -149,6 +151,15 @@ function estimateAirLeft(height, vy) {
   const d = vy * vy + 2 * G * Math.max(0, height);
   return (vy + Math.sqrt(d)) / G;
 }
+
+// Glissement latéral dans un virage (m/s, vers l'extérieur) : courbure × vitesse², plafonné
+export const DRIFT = 0.6, DRIFT_MAX = 6;
+export function driftSpeed(world, car) {
+  const k = world.curveAt ? world.curveAt(car.z) : 0;
+  return Math.max(-DRIFT_MAX, Math.min(DRIFT_MAX, -k * car.v * car.v * DRIFT));
+}
+// Braquage qui compense exactement le glissement (pour le pilote automatique des simulations)
+export function driftSteer(car) { return -(car.drift || 0) / (3 + Math.min(car.v, 30) * 0.32); }
 
 export function launchSpeed(t, pct) {
   return t.vmax * Math.min(1, pct / 100);

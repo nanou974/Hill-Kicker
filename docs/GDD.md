@@ -64,14 +64,14 @@ La piste est vue de derrière la voiture. Elle est large (4 à 5 voitures de fro
 
 **Décors du niveau 1** : arbres, sapins, rochers, buissons et clôtures en bordure, vaches, granges, moulins, fleurs, panneaux de distance tous les 250 m et arches colorées au-dessus de la piste.
 
-**Caméra** : derrière la voiture, surélevée (8 m) et tournée loin devant : la voiture occupe le bas de l'écran et la piste se lit jusqu'à l'horizon (brouillard à partir de 90 m, horizon à ~290 m, champ de vision 60°). Elle monte encore pour les véhicules hauts (monster truck, bus…) afin de voir ce qui arrive juste devant. Elle suit la voiture sur toute la largeur. Dans les virages, elle glisse du côté opposé pour une vue de trois quarts. Sous la voûte d'un tunnel, d'une grotte ou d'une arche, elle descend pour rester dans le passage. En profondeur, elle reste collée à la voiture (aucun décrochage quand la voiture accélère) ; l'effet de vitesse d'un boost est un léger élargissement du champ de vision (6 à 8°) qui monte et redescend en douceur.
+**Caméra** : derrière la voiture, surélevée (8 m) et tournée loin devant (dans un virage de la piste, elle tourne autour de la voiture vers la sortie du virage) : la voiture occupe le bas de l'écran et la piste se lit jusqu'à l'horizon (brouillard à partir de 90 m, horizon à ~290 m, champ de vision 60°). Elle monte encore pour les véhicules hauts (monster truck, bus…) afin de voir ce qui arrive juste devant. Elle suit la voiture sur toute la largeur. Dans les virages, elle glisse du côté opposé pour une vue de trois quarts. Sous la voûte d'un tunnel, d'une grotte ou d'une arche, elle descend pour rester dans le passage. En profondeur, elle reste collée à la voiture (aucun décrochage quand la voiture accélère) ; l'effet de vitesse d'un boost est un léger élargissement du champ de vision (6 à 8°) qui monte et redescend en douceur.
 
 **Gemmes visibles de loin** : chaque gemme sur la piste est surmontée d'une colonne de lumière rose qui traverse le brouillard ; elle s'efface quand on arrive dessus.
 
 **Ralentissement et surfaces**
 
 - Le relief ralentit le véhicule ; pas de perte de vitesse à l'atterrissage.
-- **Collisions** : percuter un obstacle (colline d'une bifurcation, rocher, statue, paroi d'un passage étroit, colonne, stalagmite ou autre élément de décor sur la piste) arrête net la voiture et termine la course, avec « CRASH ! » et une secousse de l'écran. Les obstacles n'apparaissent pas avant 260 m, ni près des rampes et des plaques. On peut survoler un obstacle en sautant assez haut.
+- **Collisions** : percuter un obstacle (colline d'une bifurcation, rocher, statue, tronc couché, paroi d'un passage étroit, colonne, stalagmite ou autre élément de décor sur la piste) arrête net la voiture et termine la course, avec « CRASH ! » et une secousse de l'écran. Les obstacles n'apparaissent pas avant 260 m, ni près des rampes et des plaques. On peut survoler un obstacle en sautant assez haut.
 - La surface fait varier la décélération sur le plat : terrain de base normal ; zones goudronnées (ou glace, planches lisses selon le monde) où la voiture met plus de temps à retomber à 0 km/h.
 
 **Fin de course**
@@ -190,7 +190,33 @@ Un palier toutes les 5 améliorations (paliers 1 à 5, soit 5, 10, 15, 20, 25 am
 
 ## Mondes
 
-20 niveaux d'environ 3 000 m chacun (à ajuster pendant les essais), un thème unique chacun, avec une difficulté croissante. Sans amélioration, le premier lancement ne parcourt qu'environ 200 m (≈ 7 % du niveau).
+20 niveaux, un thème unique chacun, avec une difficulté croissante. Sans amélioration, le premier lancement ne parcourt qu'environ 200 m (≈ 7 % du niveau). Après le dernier monde terminé, le jeu repart au premier (niveau 11 = monde 1 avec 10 mondes) ; la longueur et la difficulté, elles, continuent de monter.
+
+**Longueur** : 3 000 m au niveau 1, puis 60 m de plus par niveau, jusqu'à 4 500 m (niveau 26 et au-delà).
+
+**Difficulté** (de 0 au niveau 1 à 100 % au niveau 25) : jusqu'à 30 % d'obstacles en plus (plus souvent par deux), passages étroits 25 % plus rapprochés, virages 30 % plus serrés.
+
+**Piste propre à chaque monde** (`src/game/tracks.js`, même ordre que les mondes) : chaque monde a son relief, son tracé, ses passages étroits et ses obstacles typiques.
+
+- **Virages** : la piste tourne à gauche et à droite (virages simples ou enchaînés en S), toujours droite sur les 230 premiers mètres et dans les passages étroits (de 70 m avant l'entrée à 25 m après la sortie). Dans un virage, la voiture glisse vers l'extérieur d'autant plus vite qu'elle roule vite (courbure × vitesse² × 0,6, au plus 6 m/s) : il faut contre-braquer. À l'écran, la piste se courbe devant la voiture ; la caméra tourne légèrement vers la sortie du virage et la voiture braque vers l'intérieur. Des panneaux à chevrons rouges sont plantés sur le bord extérieur, et des bordures rouges et blanches suivent les deux bords de la piste pour lire le tracé de loin. Pas d'arche décorative dans un virage.
+- **Relief** : ondulations le long de la piste, dévers, dunes en biais, bosses serrées ou terrasses (replat puis descente raide), selon le monde.
+- **Troncs couchés** (forêt, jungle, bayou) : en travers d'une partie de la piste, depuis un bord ou au milieu, en laissant toujours un passage d'au moins 10 m. Les percuter arrête la voiture ; on peut les survoler.
+- **Zones lentes** : sable mouillé (plage), sable mou (désert), boue (jungle), eau (bayou). Elles freinent sans arrêter la voiture ; leur nom s'affiche à l'entrée.
+
+| Monde | Relief | Virages | Passages étroits | Obstacles typiques |
+| --- | --- | --- | --- | --- |
+| Prairie fleurie | Collines douces | Rares et larges | Portails, arches, tunnels | Rochers, statues |
+| Champs de lavande | Longues vagues, fort dévers | En S | Portails, ruines, arches | Rochers |
+| Forêt d'automne | Pente bosselée | Serrés | Tunnels, grottes | Troncs couchés |
+| Plage tropicale | Petites dunes en biais | Très longues courbes | Arches | Sable mouillé |
+| Savane | Grandes houles | Presque droite | Gorges, arches | Termitières, plus de rampes |
+| Canyons du désert | Dunes en biais | Moyens | Gorges | Sable mou, saguaros |
+| Ville fantôme du Far West | Grandes terrasses | Moyens | Portails, gorges | Rochers |
+| Jungle | Bosses, pente vive | Serpente sans arrêt | Grottes, tunnels | Troncs, boue |
+| Temples aztèques | Terrasses serrées (escalier) | Moyens | Ruines, arches | Idoles, plus de rampes |
+| Bayou brumeux | Presque plat | Sinueux | Portails, tunnels, ruines | Eau, troncs |
+
+La progression est vérifiée par `tools/sim.mjs` (pilote automatique : premier lancer, nombre de lancers et d'améliorations jusqu'à l'arrivée pour chaque niveau).
 
 | Niveau | Thème | Éléments du terrain |
 | --- | --- | --- |

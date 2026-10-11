@@ -2,7 +2,8 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import * as A from '../assets3d.js';
-import { makeLayout, LEVEL_LENGTH, COIN_VALUE } from './layout.js';
+import { makeLayout, COIN_VALUE } from './layout.js';
+import { updateBend } from './bend.js';
 import { World } from './world.js';
 import { themeFor, themeIndex } from './themes.js';
 import { createCar, step, tuning, launchSpeed } from './physics.js';
@@ -109,6 +110,7 @@ let pct = 0, holding = false, maxed = false;
 let runCoins = 0, runGems = 0, boostUsed = false, trickTimer = 0;
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 let camSide = 0;  // décalage latéral de la caméra : vue de trois quarts dans les virages
+let camAim = 0;   // rotation de la caméra vers l'intérieur d'un virage de la piste (rad)
 let crashShake = 0; // secousse de la caméra quand la voiture percute un obstacle
 let fovKick = 0;  // effet de vitesse (élargissement du champ de vision) quand un boost propulse la voiture
 let fovNow = 0;   // valeur réellement appliquée : elle suit fovKick en douceur (pas de saut d'image)
@@ -133,7 +135,7 @@ function buildCarMesh() {
   scene.add(carMesh);
 }
 function placeCarOnLauncher() {
-  car = createCar(); car.z = 5.8; car.y = world.launcherTop; car.x = 0;
+  car = createCar(); car.z = 5.8; car.y = world.launcherTop; car.x = 0; camAim = 0;
   if (carMesh) { carMesh.position.set(0, car.y, car.z); carMesh.rotation.set(0, 0, 0); }
   world.update(car.z, 0);
 }
@@ -289,7 +291,7 @@ function showTrick(html) { const t = $('trick'); t.innerHTML = html; t.hidden = 
 function finishRace(finished) {
   setScreen('end');
   if (finished) sfx.win();
-  const r = eco.endRace({ distance: Math.min(car.distance, LEVEL_LENGTH), coins: runCoins, gems: runGems, finished });
+  const r = eco.endRace({ distance: Math.min(car.distance, layout.length), coins: runCoins, gems: runGems, finished });
   $('v-r-calc').textContent = `${fmt(r.distance)} m × multiplicateur ×${String(r.mult).replace('.', ',')}`;
   $('v-r-dist').textContent = fmt(r.fromDistance); $('v-r-coins').textContent = `+${fmt(r.coins)}`;
   $('v-r-blue').textContent = fmt(r.blue); $('v-r-gems').textContent = r.gems;
@@ -304,7 +306,7 @@ $('b-nextlevel').addEventListener('click', () => { show('p-level', false); build
 function backHome() { buildLevel(); setScreen('home'); refreshHome(); }
 
 function runStep(dt) {
-  const worldPhys = { ground: (x, z) => layout.ground(x, z, tune.mu), rampAt: layout.rampAt, rampTouch: layout.rampTouch, barrier: layout.barrier, obstacleAt: layout.obstacleAt };
+  const worldPhys = { ground: (x, z) => layout.ground(x, z, tune.mu), rampAt: layout.rampAt, rampTouch: layout.rampTouch, barrier: layout.barrier, obstacleAt: layout.obstacleAt, curveAt: layout.curveAt };
   const events = [];
   const sub = 4, h = dt / sub;
   for (let i = 0; i < sub; i++) {
@@ -327,6 +329,10 @@ function runStep(dt) {
     world.fling(b, car.vx * 0.6 + (b.x - car.x) * 3 + (Math.random() - 0.5) * 4, 5 + Math.random() * 4, -Math.max(6, car.v * 0.9));
   }
   for (const g of layout.gems) if (!g.taken && Math.abs(g.z - car.z) < 1.8 && Math.abs(g.x - car.x) < 1.8) { world.take(g); if (eco.takeGem(g.id)) { runGems++; sfx.gem(); popValue('+1', 'gem'); removeGemMarker(g.id); } }
+  // Zone lente (sable mou, boue) : un message à l'entrée
+  const inSlow = !car.air && layout.isSlow(car.x, car.z);
+  if (inSlow && !car._slow) showTrick(`${layout.profile.slow.name.toUpperCase()} !`);
+  car._slow = inSlow;
   for (const e of events) {
     if (e.type === 'rampboost') { sfx.boost(); showTrick('RAMPE BOOST !'); fovKick = Math.max(fovKick, 8); }
     if (e.type === 'takeoff') sfx.takeoff();
@@ -337,7 +343,7 @@ function runStep(dt) {
       showTrick(`${parts.join(' + ')} !<small>+${Math.round((e.flips + e.rolls) * 2.2 * KMH)} km/h</small>`); sfx.trick();
     }
   }
-  if (car.distance >= LEVEL_LENGTH) { finishRace(true); return; }
+  if (car.distance >= layout.length) { finishRace(true); return; }
   // Après un crash, on laisse une seconde pour voir l'impact avant le bilan
   if (car.ended) { if (!car.crashed) finishRace(false); else if (crashShake <= -0.6) finishRace(false); }
 }
@@ -348,7 +354,7 @@ function buildGemMarkers() {
   track.querySelectorAll('.gm').forEach(e => e.remove());
   for (const g of layout.gems) if (!g.taken) {
     const el = document.createElement('div'); el.className = 'gm'; el.dataset.id = g.id;
-    el.style.bottom = `${Math.min(100, -g.z / LEVEL_LENGTH * 100)}%`;
+    el.style.bottom = `${Math.min(100, -g.z / layout.length * 100)}%`;
     el.innerHTML = '<svg width="24" height="26" aria-hidden="true"><use href="#i-gem"/></svg>';
     track.appendChild(el);
   }
@@ -359,12 +365,12 @@ function removeGemMarker(id) {
 }
 
 function updateRunHud() {
-  const d = Math.min(car.distance, LEVEL_LENGTH);
+  const d = Math.min(car.distance, layout.length);
   $('v-dist').textContent = `${fmt(d)}m`;
   $('v-runcoins').textContent = `+${runCoins}`; $('v-rungems').textContent = `+${runGems}`;
-  const p = d / LEVEL_LENGTH * 100;
+  const p = d / layout.length * 100;
   $('prog-fill').style.height = `${p}%`; $('prog-dot').style.bottom = `${p}%`; $('v-prog').textContent = `${Math.floor(p)}%`;
-  $('prog-best').style.bottom = `${Math.min(100, eco.s.best / LEVEL_LENGTH * 100)}%`; $('prog-best').hidden = eco.s.best <= 0;
+  $('prog-best').style.bottom = `${Math.min(100, eco.s.best / layout.length * 100)}%`; $('prog-best').hidden = eco.s.best <= 0;
   const kmh = Math.max(0, car.v * KMH);
   $('v-kmh').textContent = Math.round(kmh);
   $('speed-arc').setAttribute('stroke-dasharray', `${Math.min(100, kmh / 90 * 100)} 100`);
@@ -403,7 +409,8 @@ function frame(now) {
 
   // Voiture
   carMesh.position.set(car.x, car.y, car.z);
-  const yaw = car.air ? 0 : Math.max(-0.3, Math.min(0.3, -car.vx * 0.035)); // la voiture s'oriente dans le virage
+  // la voiture s'oriente quand on dirige, et braque vers l'intérieur d'un virage de la piste
+  const yaw = car.air ? 0 : Math.max(-0.35, Math.min(0.35, -car.vx * 0.035 - (state === 'home' ? 0 : camAim * 0.6)));
   carMesh.rotation.set(car.pitch, yaw, car.roll);
   if (state === 'launch' && holding) carMesh.position.x += Math.sin(clock * 60) * 0.02 * (pct / 100);
 
@@ -418,8 +425,12 @@ function frame(now) {
     // Vue surélevée qui regarde loin devant : la voiture occupe le bas de l'écran, la piste se lit jusqu'à l'horizon.
     // Plus le véhicule est haut, plus la caméra monte, pour voir ce qui arrive juste devant lui.
     const lift = Math.max(0, carHeight - 1.5) * 1.6;
-    const tp = new THREE.Vector3(car.x - camSide, car.y + 8.2 + lift, car.z + 12 + lift * 0.4);
-    const tl = new THREE.Vector3(car.x + camSide * 0.35, car.y - 4 + lift * 0.3, car.z - 40);
+    // Dans un virage, la caméra tourne autour de la voiture pour regarder vers la sortie du virage
+    const sNow = Math.max(0, -car.z), aim = Math.max(-0.35, Math.min(0.35, 2 * layout.curve.offsetFrom(sNow, sNow + 80) / 80));
+    camAim += (aim - camAim) * Math.min(1, dt * 2);
+    const ca = Math.sin(camAim);
+    const tp = new THREE.Vector3(car.x - camSide - (12 + lift * 0.4) * ca, car.y + 8.2 + lift, car.z + 12 + lift * 0.4);
+    const tl = new THREE.Vector3(car.x + camSide * 0.35 + 40 * ca, car.y - 4 + lift * 0.3, car.z - 40);
     // Sous une voûte, la caméra descend pour rester dans le passage
     const ceil = layout.ceilingAt(tp.z);
     if (ceil < Infinity) { const gy = layout.ground(tp.x, tp.z, 1).h; tp.y = Math.min(tp.y, gy + ceil); tl.y = Math.min(tl.y, gy + ceil - 3); }
@@ -436,6 +447,8 @@ function frame(now) {
   if (crashShake > 0) { crashShake -= dt; camera.position.x += (Math.random() - 0.5) * crashShake; camera.position.y += (Math.random() - 0.5) * crashShake; }
   fovKick *= Math.pow(0.35, dt); fovNow += (fovKick - fovNow) * Math.min(1, dt * 4); camera.fov = 60 + fovNow; camera.updateProjectionMatrix();
   sun.position.set(car.x + 16, car.y + 30, car.z + 12); sun.target.position.set(car.x, car.y, car.z - 8);
+  // Virages : la piste se courbe à l'écran devant la voiture
+  updateBend(layout, -car.z);
 
   uiTimer -= dt; if (uiTimer <= 0) { uiTimer = 0.5; eco.tick(); if (state === 'home') refreshHome(); else refreshTop(); }
   renderer.render(scene, camera);
