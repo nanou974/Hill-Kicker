@@ -1,11 +1,14 @@
-Cinq mondes différents, et le jeu ne s'arrête plus.
+Dix mondes !
 
 ## Installer / mettre à jour
-Télécharge `HillKicker-v0.10.0.apk` ci-dessous et ouvre-le : il s'installe par-dessus la version précédente, ta progression est conservée.
+Télécharge `HillKicker-v0.11.0.apk` ci-dessous et ouvre-le : il s'installe par-dessus la version précédente, ta progression est conservée.
 
 ## Nouveautés
-- **Un paysage par niveau** : Prairie fleurie, Champs de lavande, Forêt d'automne, Plage tropicale et Savane. Chaque monde a son ciel, ses couleurs, son décor (cyprès et mas provençaux, champignons géants, palmiers et paillotes, acacias et girafes…) et ses propres obstacles et objets à casser sur la piste.
-- **Le jeu continue après le dernier monde** : on repart au premier monde, avec un numéro de niveau qui continue de monter et une piste toujours différente.
-- Le nom du monde s'affiche sous le numéro du niveau, et l'écran de fin de niveau annonce le monde suivant.
+Cinq nouveaux mondes, du niveau 6 au niveau 10 :
+- **Canyons du désert** : buttes rocheuses rouges, arches de pierre, cactus. Sur la piste : des saguaros à éviter et des tonneaux à casser.
+- **Ville fantôme du Far West** : rue bordée de façades en bois, château d'eau, voie ferrée abandonnée, tombes et roues de chariot. Sur la piste : piles de tonneaux et virevoltants. Les zones rapides sont des trottoirs en planches.
+- **Jungle** : grands arbres à lianes, bambous, fougères, fleurs géantes et cascades. Sur la piste : de grosses souches. Les zones rapides sont des ponts en planches.
+- **Temples aztèques** : pyramides à degrés, têtes de pierre géantes, allées de stèles. Sur la piste : des idoles sculptées et des jarres. Les zones rapides sont dallées.
+- **Bayou brumeux** : brume plus épaisse, cyprès couverts de mousse, cabanes sur pilotis, barques, roseaux et nénuphars. Les zones rapides sont des pontons.
 
-Les 15 autres mondes prévus arriveront dans les prochaines versions. En attendant, les niveaux 6 et suivants reprennent les 5 premiers mondes.
+Après le 10e monde, le jeu repart au premier pour un nouveau tour.

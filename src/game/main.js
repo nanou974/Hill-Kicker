@@ -55,7 +55,7 @@ function applyTheme(T) {
   const g = sky.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 256);
   gr.addColorStop(0, T.sky[0]); gr.addColorStop(0.6, T.sky[1]); gr.addColorStop(1, T.sky[2]); g.fillStyle = gr; g.fillRect(0, 0, 4, 256);
   skyTex.needsUpdate = true;
-  scene.fog.color.set(T.fog);
+  scene.fog.color.set(T.fog); scene.fog.near = T.fogNear ?? 85; scene.fog.far = T.fogFar ?? 270;
   hemi.color.set(T.hemi[0]); hemi.groundColor.set(T.hemi[1]);
   sun.color.set(T.sun[0]); sun.intensity = T.sun[1];
 }
