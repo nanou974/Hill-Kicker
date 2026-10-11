@@ -43,7 +43,7 @@ scene.fog = new THREE.Fog(0xCFEAF7, 85, 270);
 scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.35;
 A.carEnvironment(renderer); // ciel extérieur pour les reflets de la carrosserie
-scene.add(new THREE.HemisphereLight(0xDDF1FF, 0x6A8A4A, 0.75));
+const hemi = new THREE.HemisphereLight(0xDDF1FF, 0x6A8A4A, 0.75); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xFFF4DE, 2.6);
 sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
 // zone d'ombre resserrée autour de la voiture : même finesse avec une carte 4 fois plus petite
@@ -105,9 +105,22 @@ let fovKick = 0;  // effet de vitesse (élargissement du champ de vision) quand 
 let fovNow = 0;   // valeur réellement appliquée : elle suit fovKick en douceur (pas de saut d'image)
 const joy = new Joystick($('app'), $('joy-base'), $('joy-knob'));
 
+// Ambiance du monde : ciel (dégradé, étoiles), brouillard, lumières
+function applyTheme(th) {
+  const g = sky.getContext('2d'); sky.height = 256; sky.width = th.stars ? 256 : 4;
+  const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, th.sky[0]); gr.addColorStop(0.6, th.sky[1]); gr.addColorStop(1, th.sky[2]); g.fillStyle = gr; g.fillRect(0, 0, sky.width, 256);
+  if (th.stars) { const r = A.rng(99); for (let i = 0; i < 260; i++) { g.fillStyle = `rgba(255,255,255,${0.4 + r() * 0.6})`; g.fillRect(r() * 256, r() * 170, r() < 0.1 ? 2 : 1, r() < 0.1 ? 2 : 1); } }
+  skyTex.needsUpdate = true;
+  scene.fog.color.setHex(th.fog); scene.fog.near = th.fogNear ?? 85; scene.fog.far = th.fogFar ?? 270;
+  hemi.color.setHex(th.hemi[0]); hemi.groundColor.setHex(th.hemi[1]); hemi.intensity = th.hemi[2];
+  sun.color.setHex(th.sun[0]); sun.intensity = th.sun[1];
+  renderer.toneMappingExposure = th.exposure ?? 0.98;
+  $('v-world').textContent = th.name;
+}
 function buildLevel() {
   if (world) world.dispose();
   layout = makeLayout(eco.s.level, eco.s.gemsTaken);
+  applyTheme(layout.theme);
   world = new World(scene, layout);
   world.setLauncherTier(A.tierOf(eco.s.up.lanceur));
   placeCarOnLauncher();
@@ -291,7 +304,7 @@ $('b-nextlevel').addEventListener('click', () => { show('p-level', false); build
 function backHome() { buildLevel(); setScreen('home'); refreshHome(); }
 
 function runStep(dt) {
-  const worldPhys = { ground: (x, z) => layout.ground(x, z, tune.mu), rampAt: layout.rampAt, rampTouch: layout.rampTouch, barrier: layout.barrier, obstacleAt: layout.obstacleAt };
+  const worldPhys = { gravity: layout.gravity, ground: (x, z) => layout.ground(x, z, tune.mu), rampAt: layout.rampAt, rampTouch: layout.rampTouch, barrier: layout.barrier, obstacleAt: layout.obstacleAt };
   const events = [];
   const sub = 4, h = dt / sub;
   for (let i = 0; i < sub; i++) {

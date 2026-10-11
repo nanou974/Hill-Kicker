@@ -190,30 +190,30 @@ Un palier toutes les 5 améliorations (paliers 1 à 5, soit 5, 10, 15, 20, 25 am
 
 ## Mondes
 
-20 niveaux d'environ 3 000 m chacun (à ajuster pendant les essais), un thème unique chacun, avec une difficulté croissante. Sans amélioration, le premier lancement ne parcourt qu'environ 200 m (≈ 7 % du niveau).
+20 mondes, un par niveau (`src/game/themes.js`). Après le niveau 20, les mondes recommencent avec une pente plus raide (+0,0004 par niveau, jusqu'au niveau 60). Chaque monde a : une texture de piste (`trackTexture`), des couleurs de bas-côtés et de champs, une zone **rapide** (glisse mieux) et souvent une zone **lente** (freine, à contourner ; jamais juste avant une rampe, une plaque ou une bifurcation), un ciel, un brouillard et une lumière, un relief et des talus propres, ses décors (champs, bords de piste, monuments, bordures) et ses obstacles.
 
-| Niveau | Thème | Éléments du terrain |
-| --- | --- | --- |
-| 1 | Prairie fleurie | Collines douces, moulins, bottes de foin |
-| 2 | Champs de lavande | Rangées violettes, mas en pierre, ruches |
-| 3 | Forêt d'automne | Feuilles rousses, troncs couchés, champignons géants |
-| 4 | Plage tropicale | Dunes, palmiers, pontons en bois |
-| 5 | Savane | Termitières, acacias, points d'eau |
-| 6 | Canyons du désert | Arches rocheuses, cactus, ponts suspendus |
-| 7 | Ville fantôme du Far West | Saloon, rails abandonnés, buissons roulants |
-| 8 | Jungle | Lianes, cascades, ponts de corde |
-| 9 | Temples aztèques | Pyramides à marches, statues, passages secrets |
-| 10 | Bayou brumeux | Pontons lisses, cyprès, racines en bosses |
-| 11 | Japon des cerisiers | Torii, pétales, toits de pagodes |
-| 12 | Ville néon de nuit | Toits d'immeubles, enseignes, échafaudages |
-| 13 | Chantier géant | Grues, poutrelles, tuyaux |
-| 14 | Banquise | Icebergs, plaques de glace, igloos |
-| 15 | Volcan | Coulées de lave, roches noires, geysers |
-| 16 | Fonds marins | Tunnel de verre, coraux, épaves |
-| 17 | Chambre d'enfant géante | Livres en rampes, blocs de construction, peluches |
-| 18 | Monde des bonbons | Collines de guimauve, sucres d'orge, chocolat fondu |
-| 19 | Surface lunaire | Cratères, faible gravité, module lunaire |
-| 20 | Cité céleste | Îles flottantes, nuages rebondissants, arc-en-ciel |
+| Niveau | Monde | Piste | Zone rapide / zone lente | Décors |
+| --- | --- | --- | --- | --- |
+| 1 | Prairie fleurie | Herbe rayée | Goudron / — | Arbres, sapins, foin, vaches, granges, moulins |
+| 2 | Champs de lavande | Gravier | Chemin dallé / terre meuble | Rangées de lavande, oliviers, cyprès, ruches, mas |
+| 3 | Forêt d'automne | Feuilles mortes | Chemin sec / boue | Arbres roux, champignons géants, arbres morts |
+| 4 | Plage tropicale | Sable ridé | Sable mouillé / sable mou | Palmiers, cabanes, parasols, mer sur les côtés |
+| 5 | Savane | Terre caillouteuse | Terre battue / herbes hautes | Acacias, baobabs, termitières |
+| 6 | Canyons du désert | Sable ridé | Roche lisse / sable | Cactus, mesas, roches rouges, hauts talus |
+| 7 | Ville fantôme du Far West | Terre | Planches / poussière | Saloons, châteaux d'eau, buissons roulants |
+| 8 | Jungle | Boue | Racines lisses / boue | Grands arbres à lianes, fougères, bambous |
+| 9 | Temples aztèques | Pavés | Dalles polies / mousse | Pyramides à degrés, têtes de pierre |
+| 10 | Bayou brumeux | Boue | Pontons lisses / marécage | Cyprès à mousse, roseaux, cabanes sur pilotis, eau |
+| 11 | Japon des cerisiers | Gravier ratissé | Pierres plates / gravier profond | Cerisiers, bambous, lanternes, pagodes, torii |
+| 12 | Ville néon de nuit | Asphalte avec marquages | Asphalte neuf / chantier | Gratte-ciel éclairés, enseignes néon, lampadaires (nuit) |
+| 13 | Chantier géant | Béton | Dalle de béton / gravats | Grues, poutrelles, tuyaux, conteneurs, cônes |
+| 14 | Banquise | Neige | Glace / neige poudreuse | Icebergs, sapins enneigés, igloos, manchots |
+| 15 | Volcan | Roche veinée de lave | Roche vitrifiée / cendres | Roches de lave, geysers, volcan au loin |
+| 16 | Fonds marins | Sable | Courant / vase | Algues, coraux, épaves, bénitiers (gravité ×0,8 en l'air) |
+| 17 | Chambre d'enfant géante | Parquet | Parquet ciré / tapis épais | Cubes à lettres, livres, crayons, peluches, ballons |
+| 18 | Monde des bonbons | Damier sucré | Sucre glace / chocolat fondu | Sucettes, sucres d'orge, bonbons, guimauves, donuts |
+| 19 | Surface lunaire | Poussière à cratères | Roche polie / poussière fine | Rochers, cratères, module lunaire, antennes, ciel étoilé (gravité ×0,6 en l'air) |
+| 20 | Cité céleste | Nuages et arc-en-ciel | Arc-en-ciel / nuage mou | Nuages, îles flottantes, cristaux, arcs-en-ciel |
 
 ## Son
 

@@ -61,6 +61,9 @@ function rockMass(L, p) {
 
   // Couleurs : roche variée, intérieur sombre, herbe au sommet du tunnel, strates ocre dans la gorge
   const c = new THREE.Color();
+  // Palette imposée par le monde (roche ocre, glace, sucre, roche lunaire…), sinon couleurs par défaut
+  const hx = (h) => [((h >> 16) & 255) / 255, ((h >> 8) & 255) / 255, (h & 255) / 255];
+  const pal = L.theme && L.theme.passage ? { body: hx(L.theme.passage.body), top: hx(L.theme.passage.top) } : null;
   const steps = Math.max(1, Math.ceil(p.len / 3));
   for (const s of shapes) {
     const geo = new THREE.ExtrudeGeometry(s, { depth: p.len, steps, bevelEnabled: false, curveSegments: 4 });
@@ -83,6 +86,7 @@ function rockMass(L, p) {
       pos.setXYZ(i, x, y, zz);
       const k = hash3(x0, zl, 7) * 0.08;
       if (inner) c.setRGB(0.24 + k, 0.21 + k, 0.2 + k, THREE.SRGBColorSpace);
+      else if (pal) { const t = y0 > top(x0) - 2.2 ? pal.top : pal.body; c.setRGB(t[0] + k, t[1] + k, t[2] + k, THREE.SRGBColorSpace); } // couleurs du monde
       else if (p.kind === 'tunnel' && y0 > top(x0) - 2.2) c.setRGB(0.36 + k, 0.62 + k, 0.26, THREE.SRGBColorSpace);
       else if (p.kind === 'canyon') { const band = Math.floor((y0 + 4) / 2.6) % 3; const b = [[0.80, 0.52, 0.32], [0.72, 0.42, 0.26], [0.86, 0.66, 0.44]][band]; c.setRGB(b[0] + k, b[1] + k, b[2] + k, THREE.SRGBColorSpace); }
       else if (p.kind === 'arch') c.setRGB(0.74 + k, 0.6 + k, 0.46 + k, THREE.SRGBColorSpace);

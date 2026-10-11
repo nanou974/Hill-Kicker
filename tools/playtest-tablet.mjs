@@ -15,10 +15,11 @@ const server = http.createServer((req, res) => {
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const errors = [];
 for (const [name, w, h] of [['tablette', 800, 1280]]) {
+  const lvl = +(process.env.LEVEL || 1);
   const page = await browser.newPage({ viewport: { width: w, height: h } });
   page.on('pageerror', e => errors.push(e.message));
   await page.route('https://cdn.jsdelivr.net/npm/three@0.186.1/**', (route) => { const rel = route.request().url().split('three@0.186.1/')[1]; route.fulfill({ path: path.join(root, 'node_modules/three', rel), contentType: 'text/javascript' }); });
-  await page.addInitScript(() => localStorage.setItem('hill-kicker-fps', '1'));
+  await page.addInitScript((lv) => { localStorage.setItem('hill-kicker-fps', '1'); localStorage.setItem('hill-kicker-save-v1', JSON.stringify({ level: lv, lives: 25, up: { pneus: 0, susp: 0, lanceur: 0, mult: 0 } })); }, lvl);
   await page.goto('http://localhost:8773/index.html');
   await page.waitForFunction(() => window.__hk, null, { timeout: 60000 });
   await page.waitForTimeout(2500);
