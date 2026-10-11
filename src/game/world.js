@@ -5,7 +5,7 @@ import { LEVEL_LENGTH } from './layout.js';
 import { buildPassage } from './passages.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-const CHUNK = 150, AHEAD = 3, BEHIND = 1;
+const CHUNK = 150, AHEAD = 2, BEHIND = 1; // 2 tronçons devant : le terrain chargé va toujours au moins 300 m plus loin, au-delà du brouillard
 const BUDGET_MS = 5; // temps de construction de décor autorisé par image : les tronçons lointains se fabriquent par petits morceaux
 const WIDTH = 240, STEP = 2.5;
 

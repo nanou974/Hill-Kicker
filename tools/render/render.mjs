@@ -26,7 +26,7 @@ for (const j of jobs) {
   const w = j.w || 780, h = j.h || 1688;
   const page = await browser.newPage({ viewport: { width: w, height: h } });
   page.on('pageerror', e => console.log('pageerror', j.file, e.message));
-  await page.goto(`http://localhost:8765/tools/render/index.html?s=${j.s}&w=${w}&h=${h}${j.car ? '&car=' + j.car : ''}`);
+  await page.goto(`http://localhost:8765/tools/render/index.html?s=${j.s}&w=${w}&h=${h}${j.car ? '&car=' + j.car : ''}${j.t !== undefined ? '&t=' + j.t : ''}`);
   await page.waitForFunction(() => window.__done, null, { timeout: 180000 });
   const st = await page.evaluate(() => window.__done);
   if (st !== 'ok') { console.log(j.file, st); await page.close(); continue; }

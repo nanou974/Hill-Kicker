@@ -1,11 +1,16 @@
-Jeu plus fluide et plein écran sur tablette.
+Plus fluide sur tablette, et des améliorations qui se voient.
 
 ## Installer / mettre à jour
-Télécharge `HillKicker-v0.8.0.apk` ci-dessous depuis ton téléphone ou ta tablette et ouvre-le : il s'installe par-dessus la version précédente, ta progression est conservée.
+Télécharge `HillKicker-v0.9.0.apk` ci-dessous et ouvre-le : il s'installe par-dessus la version précédente, ta progression est conservée.
 
-## Nouveautés
-- **Beaucoup plus fluide** : le décor de chaque zone est regroupé en quelques gros objets. Le jeu dessine environ 350 objets par image au lieu de 3 600, sans changement visuel.
-- **Moins de saccades** : le décor des zones suivantes se prépare par petits morceaux pendant que tu joues.
-- **Résolution** de calcul limitée à 1,5 fois l'écran (gros gain sur tablette, différence invisible).
-- **Plein écran sur tablette** : plus de bandes noires, et l'interface s'agrandit à la taille de l'écran.
-- **Compteur FPS** dans les Paramètres, pour mesurer la fluidité (en rouge sous 45 images par seconde).
+## Fluidité
+- **Qualité graphique automatique** (Paramètres › Qualité) : en mode Auto, le jeu mesure sa fluidité et baisse lui-même la résolution puis les ombres s'il passe sous 48 images par seconde. Sur un appareil puissant, rien ne change. Tu peux aussi choisir Haute, Moyenne ou Économie.
+- **Ombres** moins coûteuses (même rendu à l'œil).
+- **Distance d'affichage** ajustée : une zone de décor en moins à calculer, sans voir le bord du terrain.
+
+## Paliers d'amélioration
+Toutes les 5 améliorations, le véhicule ou le lanceur change d'aspect :
+- **Pneus** : roues plus grosses et plus larges, jantes noires, dorées, rouges, cyan puis chromées, crampons au palier 4.
+- **Suspensions** : caisse relevée et ressorts colorés visibles.
+- **Lanceur** : plus grand, moteurs plus gros, puis flammes, néons, turbines et dorure.
+- Fanfare et « PALIER X ! » quand tu atteins un nouveau palier.

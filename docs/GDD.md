@@ -135,11 +135,21 @@ Le booster s'active à tout moment pendant la course avec un bouton dédié. Il 
 
 **Début du jeu** : 0 monnaie jaune, 0 monnaie bleue, 0 gemme, aucun coffre disponible ; seulement les 25 vies et la citadine.
 
+## Paliers visuels des améliorations
+
+Un palier toutes les 5 améliorations (paliers 1 à 5, soit 5, 10, 15, 20, 25 améliorations), visible sur tous les véhicules ; les petites barres de chaque carte se remplissent jusqu'au palier suivant. À chaque nouveau palier : fanfare et carte qui s'illumine avec « PALIER X ! ».
+- **Pneus** : roues +7 % de diamètre et +10 % de largeur par palier, jantes noires, dorées, rouges, cyan puis chromées ; crampons tout-terrain au palier 4. La caisse monte pour laisser la place aux roues.
+- **Suspensions** : caisse relevée de 7 cm par palier ; ressorts hélicoïdaux et amortisseurs chromés visibles entre roues et caisse (jaune, rouge, bleu, vert, violet).
+- **Lanceur** : plus long (+0,7 m) et plus large par palier, moteurs plus gros et voyants d'une nouvelle couleur ; cheminées à flammes au palier 2, néons le long des rails au palier 3, turbines au palier 4, moteurs et rails dorés au palier 5.
+- **Multiplicateur** : pas de palier visuel (il ne concerne pas le véhicule).
+
 ## Performances et écrans
 
 - **Décor fusionné** : tout le décor immobile d'un tronçon de 150 m (arbres, buissons, clôtures, herbe, fleurs, rochers, rampes, plaques, passages) est regroupé en un objet par matériau. Environ 350 objets dessinés par image au lieu de 3 600.
 - **Construction progressive** : les tronçons lointains se fabriquent par petits morceaux (5 ms par image au maximum) ; seuls le tronçon de la voiture et le suivant sont construits d'un coup si besoin.
 - **Résolution** limitée à 1,5 fois celle de l'écran ; touffes d'herbe et fleurs sans ombre.
+- **Ombres** filtrées simples (PCF) sur une carte 1024 resserrée autour de la voiture (±24 m) ; **distance de vue** : 2 tronçons chargés devant (au moins 300 m), brouillard de 85 à 270 m.
+- **Qualité graphique** (Paramètres) : Auto, Haute, Moyenne, Économie. En Auto, le jeu mesure sa fluidité toutes les 2 s et descend d'un cran sous 48 images/s (Haute → Moyenne → Économie → Minimum : résolution 1,5 → 1,15 → 0,9 → 0,75, ombres 1024 → 512 → aucune) ; il remonte s'il tient 59 images/s pendant 20 s. Le niveau trouvé est mémorisé pour la partie suivante.
 - **Tablettes et grands écrans** : la 3D occupe tout l'écran (plus de bandes noires) et l'interface s'agrandit proportionnellement (jusqu'à ×2).
 - **Compteur d'images par seconde** activable dans les Paramètres (rouge sous 45 FPS).
 

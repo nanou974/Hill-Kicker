@@ -32,21 +32,22 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); // au-delà, la différence ne se voit pas mais coûte très cher sur tablette
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.98;
-renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; // ombres filtrées simples : bien moins coûteuses que les ombres douces
 host.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 const sky = document.createElement('canvas'); sky.width = 4; sky.height = 256;
 { const g = sky.getContext('2d'); const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#6DB8EC'); gr.addColorStop(0.6, '#B4E0F7'); gr.addColorStop(1, '#E4F5FF'); g.fillStyle = gr; g.fillRect(0, 0, 4, 256); }
 const skyTex = new THREE.CanvasTexture(sky); skyTex.colorSpace = THREE.SRGBColorSpace; scene.background = skyTex;
 // Brouillard lointain : on voit venir les pièces et gemmes de loin (jusqu'à ~280 m)
-scene.fog = new THREE.Fog(0xCFEAF7, 90, 290);
+scene.fog = new THREE.Fog(0xCFEAF7, 85, 270);
 scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.35;
 A.carEnvironment(renderer); // ciel extérieur pour les reflets de la carrosserie
 scene.add(new THREE.HemisphereLight(0xDDF1FF, 0x6A8A4A, 0.75));
 const sun = new THREE.DirectionalLight(0xFFF4DE, 2.6);
-sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
-Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30, near: 1, far: 140 });
+sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
+// zone d'ombre resserrée autour de la voiture : même finesse avec une carte 4 fois plus petite
+Object.assign(sun.shadow.camera, { left: -24, right: 24, top: 24, bottom: -24, near: 1, far: 120 });
 sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.03;
 scene.add(sun, sun.target);
 const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 700);
@@ -59,6 +60,38 @@ function resize() {
   renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
+
+// ---------- Qualité graphique : Auto (le jeu s'adapte), Haute, Moyenne, Économie ----------
+// Chaque niveau règle la résolution de calcul et les ombres. En Auto, le jeu mesure sa fluidité et descend d'un cran
+// s'il reste sous 48 images/s ; il remonte s'il tient 59 images/s pendant 20 s.
+const QUALITY = [
+  { name: 'HAUTE', pr: 1.5, shadow: 1024, shadows: true },
+  { name: 'MOYENNE', pr: 1.15, shadow: 1024, shadows: true },
+  { name: 'ÉCONOMIE', pr: 0.9, shadow: 512, shadows: true },
+  { name: 'MINIMUM', pr: 0.75, shadow: 512, shadows: false },
+];
+let qualityMode = 'auto', qualityLevel = 0;
+try { qualityMode = localStorage.getItem('hill-kicker-quality') || 'auto'; qualityLevel = +(localStorage.getItem('hill-kicker-quality-auto') || 0); } catch (e) { /* stockage indisponible */ }
+function applyQuality(level) {
+  qualityLevel = Math.max(0, Math.min(QUALITY.length - 1, level));
+  const q = QUALITY[qualityLevel];
+  renderer.setPixelRatio(Math.min(devicePixelRatio, q.pr)); resize();
+  if (sun.shadow.mapSize.x !== q.shadow) { sun.shadow.mapSize.set(q.shadow, q.shadow); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
+  if (sun.castShadow !== q.shadows) sun.castShadow = q.shadows;
+  if (qualityMode === 'auto') try { localStorage.setItem('hill-kicker-quality-auto', String(qualityLevel)); } catch (e) { /* stockage indisponible */ }
+  if ($('b-quality')) refreshQualityBtn();
+}
+const qAuto = { time: 0, frames: 0, good: 0, cool: 3 };
+function autoQuality(raw) {
+  if (qualityMode !== 'auto' || document.hidden) return;
+  qAuto.time += raw; qAuto.frames++; qAuto.cool -= raw;
+  if (qAuto.time < 2) return;
+  const fps = qAuto.frames / qAuto.time; qAuto.time = 0; qAuto.frames = 0;
+  if (qAuto.cool > 0) return; // on laisse le temps au réglage précédent de faire effet
+  if (fps < 48 && qualityLevel < QUALITY.length - 1) { applyQuality(qualityLevel + 1); qAuto.cool = 4; qAuto.good = 0; }
+  else if (fps >= 59 && qualityLevel > 0) { qAuto.good += 2; if (qAuto.good >= 20) { applyQuality(qualityLevel - 1); qAuto.cool = 4; qAuto.good = 0; } }
+  else qAuto.good = 0;
+}
 
 // ---------- état ----------
 let state = 'home';
@@ -333,9 +366,19 @@ try { fpsOn = localStorage.getItem('hill-kicker-fps') === '1'; } catch (e) { /* 
 function refreshFpsBtn() { $('b-fps').textContent = fpsOn ? 'FPS : AFFICHÉS' : 'FPS : MASQUÉS'; show('fps', fpsOn); }
 $('b-fps').addEventListener('click', () => { fpsOn = !fpsOn; try { localStorage.setItem('hill-kicker-fps', fpsOn ? '1' : '0'); } catch (e) { /* stockage indisponible */ } refreshFpsBtn(); });
 refreshFpsBtn();
+// Bouton Qualité des Paramètres : Auto → Haute → Moyenne → Économie → Auto
+const Q_MODES = ['auto', 'haute', 'moyenne', 'economie'];
+function refreshQualityBtn() { $('b-quality').textContent = 'QUALITÉ : ' + (qualityMode === 'auto' ? `AUTO (${QUALITY[qualityLevel].name})` : QUALITY[{ haute: 0, moyenne: 1, economie: 2 }[qualityMode]].name); }
+$('b-quality').addEventListener('click', () => {
+  qualityMode = Q_MODES[(Q_MODES.indexOf(qualityMode) + 1) % Q_MODES.length];
+  try { localStorage.setItem('hill-kicker-quality', qualityMode); } catch (e) { /* stockage indisponible */ }
+  applyQuality(qualityMode === 'auto' ? 0 : { haute: 0, moyenne: 1, economie: 2 }[qualityMode]); qAuto.cool = 3; refreshQualityBtn();
+});
+refreshQualityBtn();
 function frame(now) {
   const raw = Math.min(0.25, (now - last) / 1000); const dt = Math.min(0.05, raw); last = now; clock += dt;
   if (fpsOn) { fpsFrames++; fpsTime += (now - (frame.prev ?? now)) / 1000; if (fpsTime >= 0.5) { const f = Math.round(fpsFrames / fpsTime); $('fps').textContent = f + ' FPS'; $('fps').classList.toggle('low', f < 45); fpsFrames = 0; fpsTime = 0; } }
+  autoQuality(Math.min(1, (now - (frame.prev ?? now)) / 1000)); // durée réelle de l'image (non plafonnée)
   frame.prev = now;
   if (state === 'launch' && holding && !maxed) { pct = Math.min(100, pct + raw * 62); if (pct >= 100) maxed = true; updateGauge(); }
   if (state === 'launch' && holding && maxed) $('app').classList.add('shake');
@@ -413,6 +456,7 @@ $('b-gact').addEventListener('click', () => { if (eco.buyCar(gSel)) { buildCarMe
 
 // ---------- démarrage ----------
 resize();
+applyQuality(qualityMode === 'auto' ? qualityLevel : { haute: 0, moyenne: 1, economie: 2 }[qualityMode] ?? 0);
 buildCarMesh();
 buildLevel();
 setScreen('home');
