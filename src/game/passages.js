@@ -10,14 +10,16 @@ function hash3(x, y, z) {
   h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-export function buildPassage(L, p) {
-  const g = p.kind === 'gate' ? gate(L, p) : p.kind === 'ruins' ? ruins(L, p) : rockMass(L, p);
+// T : monde du niveau (couleur de l'herbe et de la roche)
+export function buildPassage(L, p, T) {
+  const g = p.kind === 'gate' ? gate(L, p) : p.kind === 'ruins' ? ruins(L, p) : rockMass(L, p, T);
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   return g;
 }
 
 // ---------- Massif rocheux extrudé le long de la piste (arche, tunnel, grotte, gorge) ----------
-function rockMass(L, p) {
+function rockMass(L, p, T) {
+  const GR = T ? T.grass : [0.36, 0.62, 0.26], RK = T ? T.rock : [0.52, 0.53, 0.55];
   const g = new THREE.Group(), r = A.rng(p.seed);
   const H = { arch: 11, tunnel: 15, cave: 13, canyon: 16 }[p.kind];
   const holeH = p.holeH;
@@ -83,10 +85,10 @@ function rockMass(L, p) {
       pos.setXYZ(i, x, y, zz);
       const k = hash3(x0, zl, 7) * 0.08;
       if (inner) c.setRGB(0.24 + k, 0.21 + k, 0.2 + k, THREE.SRGBColorSpace);
-      else if (p.kind === 'tunnel' && y0 > top(x0) - 2.2) c.setRGB(0.36 + k, 0.62 + k, 0.26, THREE.SRGBColorSpace);
+      else if (p.kind === 'tunnel' && y0 > top(x0) - 2.2) c.setRGB(GR[0] + k, GR[1] + k, GR[2], THREE.SRGBColorSpace);
       else if (p.kind === 'canyon') { const band = Math.floor((y0 + 4) / 2.6) % 3; const b = [[0.80, 0.52, 0.32], [0.72, 0.42, 0.26], [0.86, 0.66, 0.44]][band]; c.setRGB(b[0] + k, b[1] + k, b[2] + k, THREE.SRGBColorSpace); }
       else if (p.kind === 'arch') c.setRGB(0.74 + k, 0.6 + k, 0.46 + k, THREE.SRGBColorSpace);
-      else c.setRGB(0.52 + k, 0.53 + k, 0.55 + k, THREE.SRGBColorSpace);
+      else c.setRGB(RK[0] + k, RK[1] + k, RK[2] + k, THREE.SRGBColorSpace);
       col.push(c.r, c.g, c.b);
     }
     geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));

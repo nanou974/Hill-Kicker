@@ -18,7 +18,8 @@ Le document de conception complet est dans [docs/GDD.md](docs/GDD.md).
 | Terrain, décors, lanceur, pièces, gemmes | Faits (`src/assets3d.js`) |
 | Boucle de jeu jouable (prototype) | Faite : lanceur, course, cascades, booster, pièces, résultats, coffre, vies, améliorations, garage |
 | Sons (moteur, pièces, boosts, cascades) | Faits |
-| Visuels par palier d'amélioration, 20 mondes | À faire |
+| Mondes (paysages par niveau) | 5 sur 20 faits (`src/game/themes.js`) ; le jeu reboucle après le dernier |
+| Visuels par palier d'amélioration | À faire |
 
 ## Jouer
 

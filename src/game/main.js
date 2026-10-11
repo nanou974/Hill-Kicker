@@ -1,9 +1,10 @@
-// Hill Kicker — boucle de jeu jouable (niveau générique « Prairie fleurie »).
+// Hill Kicker — boucle de jeu jouable. Chaque niveau a son monde (themes.js), et le jeu reboucle après le dernier.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import * as A from '../assets3d.js';
 import { makeLayout, LEVEL_LENGTH, COIN_VALUE } from './layout.js';
 import { World } from './world.js';
+import { themeFor, themeIndex } from './themes.js';
 import { createCar, step, tuning, launchSpeed } from './physics.js';
 import { Economy, UPGRADES, VEHICLE_PRICES } from './economy.js';
 import { Joystick } from './input.js';
@@ -36,20 +37,28 @@ renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
 host.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 const sky = document.createElement('canvas'); sky.width = 4; sky.height = 256;
-{ const g = sky.getContext('2d'); const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#6DB8EC'); gr.addColorStop(0.6, '#B4E0F7'); gr.addColorStop(1, '#E4F5FF'); g.fillStyle = gr; g.fillRect(0, 0, 4, 256); }
 const skyTex = new THREE.CanvasTexture(sky); skyTex.colorSpace = THREE.SRGBColorSpace; scene.background = skyTex;
 // Brouillard lointain : on voit venir les pièces et gemmes de loin (jusqu'à ~280 m)
 scene.fog = new THREE.Fog(0xCFEAF7, 85, 270);
 scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.35;
 A.carEnvironment(renderer); // ciel extérieur pour les reflets de la carrosserie
-scene.add(new THREE.HemisphereLight(0xDDF1FF, 0x6A8A4A, 0.75));
+const hemi = new THREE.HemisphereLight(0xDDF1FF, 0x6A8A4A, 0.75); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xFFF4DE, 2.6);
 sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
 // zone d'ombre resserrée autour de la voiture : même finesse avec une carte 4 fois plus petite
 Object.assign(sun.shadow.camera, { left: -24, right: 24, top: 24, bottom: -24, near: 1, far: 120 });
 sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.03;
 scene.add(sun, sun.target);
+// Ciel, brume et lumières du monde du niveau
+function applyTheme(T) {
+  const g = sky.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 256);
+  gr.addColorStop(0, T.sky[0]); gr.addColorStop(0.6, T.sky[1]); gr.addColorStop(1, T.sky[2]); g.fillStyle = gr; g.fillRect(0, 0, 4, 256);
+  skyTex.needsUpdate = true;
+  scene.fog.color.set(T.fog);
+  hemi.color.set(T.hemi[0]); hemi.groundColor.set(T.hemi[1]);
+  sun.color.set(T.sun[0]); sun.intensity = T.sun[1];
+}
 const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 700);
 let carHeight = 1.5; // hauteur du véhicule choisi : la caméra monte pour les gros véhicules
 
@@ -108,6 +117,7 @@ const joy = new Joystick($('app'), $('joy-base'), $('joy-knob'));
 function buildLevel() {
   if (world) world.dispose();
   layout = makeLayout(eco.s.level, eco.s.gemsTaken);
+  applyTheme(themeFor(eco.s.level));
   world = new World(scene, layout);
   world.setLauncherTier(A.tierOf(eco.s.up.lanceur));
   placeCarOnLauncher();
@@ -148,6 +158,7 @@ function refreshHome() {
   const s = eco.s;
   refreshTop();
   $('v-level').textContent = `NIVEAU ${s.level}`;
+  $('v-world').textContent = themeFor(s.level).name;
   $('v-carthumb').src = `assets/renders/vehicules/t_${s.car}.png`;
   const ci = eco.chestIn(); $('v-chest').textContent = ci > 0 ? mmss(ci) : 'OUVRIR !';
   document.querySelector('#b-chest .tile-img').classList.toggle('ready', ci <= 0);
@@ -284,6 +295,8 @@ function finishRace(finished) {
   $('v-r-blue').textContent = fmt(r.blue); $('v-r-gems').textContent = r.gems;
   $('v-r-record').hidden = !r.record || finished;
   refreshTop();
+  // Monde suivant (le jeu reboucle sur le premier après le dernier)
+  if (finished) { const nx = themeFor(eco.s.level).name; $('v-nextworld').textContent = themeIndex(eco.s.level) === 0 ? `Tous les mondes sont terminés ! Nouveau tour : ${nx}` : `Prochain monde : ${nx}`; }
   show(finished ? 'p-level' : 'p-results', true);
 }
 $('b-continue').addEventListener('click', () => { show('p-results', false); backHome(); });
@@ -464,6 +477,8 @@ setScreen('home');
 refreshHome();
 requestAnimationFrame(frame);
 // Outils de test : avance rapide de la course
-window.__hk = { eco, get car() { return car; }, get layout() { return layout; }, get state() { return state; }, get camera() { return camera; }, get world() { return world; }, get carMesh() { return carMesh; }, music, sfx, simulate(sec) { for (let t = 0; t < sec && state === 'run'; t += 1 / 30) runStep(1 / 30); },
+window.__hk = { eco, get car() { return car; }, get layout() { return layout; }, get state() { return state; }, get camera() { return camera; }, get world() { return world; }, themeIndex, get carMesh() { return carMesh; }, music, sfx, simulate(sec) { for (let t = 0; t < sec && state === 'run'; t += 1 / 30) runStep(1 / 30); },
+  // Outil de test : affiche directement un niveau (et son monde)
+  goLevel(n) { eco.s.level = n; eco.s.gemsTaken = []; buildLevel(); refreshHome(); },
   // Outil de test : fige la course (la caméra continue de suivre la voiture)
   freeze: false };

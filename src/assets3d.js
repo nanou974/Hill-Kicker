@@ -118,16 +118,17 @@ export function lump(seed, sx, sy, sz, color) {
   const m = new THREE.Mesh(lumpCache.get(seed), rockMats.get(c));
   m.scale.set(sx, sy, sz); return m;
 }
-export function rock(s = 1) {
+// palette : couleurs de roche propres au monde (facultatif)
+export function rock(s = 1, palette) {
   const seed = Math.floor(R() * 24), r = rng(seed + 500);
-  const m = lump(seed, s * (0.8 + r() * 0.6), s * (0.5 + r() * 0.5), s * (0.8 + r() * 0.6));
+  const m = lump(seed, s * (0.8 + r() * 0.6), s * (0.5 + r() * 0.5), s * (0.8 + r() * 0.6), palette ? palette[Math.floor(R() * palette.length)] : undefined);
   m.rotation.set(r() * 0.4, r() * 6, r() * 0.4);
   return shadowAll(m);
 }
 // Rocher obstacle de la piste, cinq familles de formes : rond, aiguille, dalle, amas, pierres empilées
-export function rockShape(type, seed) {
+export function rockShape(type, seed, palette = ROCK_COLORS) {
   const g = new THREE.Group(), r = rng(seed + 1);
-  const col = ROCK_COLORS[Math.floor(r() * ROCK_COLORS.length)];
+  const col = palette[Math.floor(r() * palette.length)];
   const add = (sx, sy, sz, x, y, z, c = col) => { const m = lump(100 + Math.floor(r() * 200), sx, sy, sz, c); m.position.set(x, y, z); m.rotation.set((r() - 0.5) * 0.5, r() * 6, (r() - 0.5) * 0.5); g.add(m); return m; };
   if (type === 'spire') {
     const m = add(0.75, 2.1, 0.7, 0, 1.8, 0); m.rotation.set((r() - 0.5) * 0.25, r() * 6, (r() - 0.5) * 0.25);
