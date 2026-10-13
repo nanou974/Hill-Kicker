@@ -419,8 +419,11 @@ function frame(now) {
   if (state === 'home') { camPos.set(-7.8, y0 + 3.4, car.z - 11.2); camLook.set(0.3, y0 + 0.7, car.z + 0.4); camera.position.copy(camPos); camera.lookAt(camLook); }
   else {
     // Vue de trois quarts : quand la voiture tourne, la caméra glisse du côté opposé et voit son flanc
-    const sideTarget = state === 'run' && !car.air ? Math.max(-4.5, Math.min(4.5, car.vx * 0.5)) : 0;
-    camSide += (sideTarget - camSide) * Math.min(1, dt * 2.5);
+    // (léger, pour que l'écran ne traîne pas derrière la voiture quand on traverse la piste)
+    const sideTarget = state === 'run' && !car.air ? Math.max(-1.5, Math.min(1.5, car.vx * 0.1)) : 0;
+    camSide += (sideTarget - camSide) * Math.min(1, dt * 4);
+    // Le regard part en avance du côté où l'on tourne : on voit où l'on va
+    const lead = state === 'run' ? Math.max(-7, Math.min(7, car.vx * 0.45)) : 0;
     // La caméra suit la voiture sur toute la largeur : elle reste toujours au centre de l'écran
     // Vue surélevée qui regarde loin devant : la voiture occupe le bas de l'écran, la piste se lit jusqu'à l'horizon.
     // Plus le véhicule est haut, plus la caméra monte, pour voir ce qui arrive juste devant lui.
@@ -430,12 +433,12 @@ function frame(now) {
     camAim += (aim - camAim) * Math.min(1, dt * 2);
     const ca = Math.sin(camAim);
     const tp = new THREE.Vector3(car.x - camSide - (12 + lift * 0.4) * ca, car.y + 8.2 + lift, car.z + 12 + lift * 0.4);
-    const tl = new THREE.Vector3(car.x + camSide * 0.35 + 40 * ca, car.y - 4 + lift * 0.3, car.z - 40);
+    const tl = new THREE.Vector3(car.x + lead + 40 * ca, car.y - 4 + lift * 0.3, car.z - 40);
     // Sous une voûte, la caméra descend pour rester dans le passage
     const ceil = layout.ceilingAt(tp.z);
     if (ceil < Infinity) { const gy = layout.ground(tp.x, tp.z, 1).h; tp.y = Math.min(tp.y, gy + ceil); tl.y = Math.min(tl.y, gy + ceil - 3); }
     if (state === 'launch') { camPos.copy(tp); camLook.copy(tl); }
-    const snap = window.__hk && window.__hk.freeze, kx = snap ? 1 : Math.min(1, dt * 9), k = snap ? 1 : Math.min(1, dt * 5);
+    const snap = window.__hk && window.__hk.freeze, kx = snap ? 1 : Math.min(1, dt * 14), k = snap ? 1 : Math.min(1, dt * 5);
     const ky = !snap && tp.y < camPos.y - 0.5 && ceil < Infinity ? Math.min(1, dt * 12) : k;
     // en profondeur, la caméra reste collée à la voiture : un coup d'accélérateur ne la fait pas décrocher (pas d'effet de recul)
     camPos.set(camPos.x + (tp.x - camPos.x) * kx, camPos.y + (tp.y - camPos.y) * ky, state === 'run' ? tp.z : camPos.z + (tp.z - camPos.z) * k);

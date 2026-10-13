@@ -2,7 +2,7 @@
 // Usage : node tools/sim.mjs            (niveaux 1 à 20 + 25 et 30)
 //         DEBUG=1 node tools/sim.mjs 7  (cause de fin de chaque lancer)
 //         node tools/sim.mjs 3 8 13     (niveaux choisis)
-import { createCar, step, tuning, launchSpeed, driftSteer } from '../src/game/physics.js';
+import { createCar, step, tuning, launchSpeed, driftSteer, steerSpeedFor } from '../src/game/physics.js';
 import { makeLayout } from '../src/game/layout.js';
 import { upgradeCost, multValue } from '../src/game/economy-rules.js';
 
@@ -16,8 +16,10 @@ function run(level, up, pct = 100, steer = 0) {
     if (!car.air && L.plateTouch(car.x, car.z) && !car._plate) { car.v += 5; car._plate = true; }
     if (!L.plateTouch(car.x, car.z)) car._plate = false;
     // Pilote automatique : contourne les collines des bifurcations par le chemin rapide
+    // gains réglés en m/s : on les ramène à la vitesse de braquage actuelle
+    const gk = (3 + Math.min(car.v, 30) * 0.32) / steerSpeedFor(car.v);
     let s = steer; const f = L.forks.find(f => car.z > f.z1 && car.z < f.z0 + 60);
-    if (f) { const tx = f.cx - f.coinSide * (f.w + 7.5); s = (tx - car.x) * 0.4; } else s = -car.x * 0.1;
+    if (f) { const tx = f.cx - f.coinSide * (f.w + 7.5); s = (tx - car.x) * 0.4 * gk; } else s = -car.x * 0.1 * gk;
     // ... vise l'ouverture des passages étroits (portails, arches, tunnels, grottes, gorges, ruines)
     // (on vise un peu en avant : l'ouverture d'une grotte ou d'une gorge se décale le long du passage)
     let px = L.passageTarget(car.x, car.z - Math.min(12, car.v * 0.35));
@@ -25,8 +27,8 @@ function run(level, up, pct = 100, steer = 0) {
     const o = L.obstacles.find(o => o.z < car.z && o.z > car.z - 30 && Math.abs(o.x - car.x) < (o.w || o.r) + 2.5);
     // stalagmite ou colonne dans un passage : on la contourne du côté de l'ouverture
     if (o && o.own && px !== null) px = o.x + Math.sign(px - o.x || 1) * (o.r + 2.4);
-    if (px !== null) s = (px - car.x) * 0.5;
-    if (o && !o.own) s = o.w ? (Math.abs(o.x - o.w - car.x) < Math.abs(o.x + o.w - car.x) ? -1 : 1) : car.x >= o.x ? 1 : -1;
+    if (px !== null) s = (px - car.x) * 0.5 * gk;
+    if (o && !o.own) s = o.w ? (Math.abs(o.x - o.w - car.x) < Math.abs(o.x + o.w - car.x) ? -gk : gk) : car.x >= o.x ? gk : -gk;
     // ... et compense le glissement dans les virages
     s += driftSteer(car);
     // TRACE=distance : affiche le pilote automatique autour de cette distance (débogage)

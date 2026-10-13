@@ -29,8 +29,11 @@ export class Joystick {
   move(e) {
     if (!this.active || e.pointerId !== this.id) return;
     let dx = e.clientX - this.ox, dy = e.clientY - this.oy;
+    // Direction : seul l'écart horizontal compte (un pouce qui dérive vers le haut ne réduit plus le braquage),
+    // et le braquage est déjà à fond aux trois quarts du cercle
+    this.steer = Math.max(-1, Math.min(1, dx / (this.R * 0.75)));
+    this.up = Math.max(0, Math.min(1, -dy / this.R));
     const d = Math.hypot(dx, dy); if (d > this.R) { dx *= this.R / d; dy *= this.R / d; }
-    this.steer = dx / this.R; this.up = Math.max(0, -dy / this.R);
     this.place(dx, dy);
   }
   end(e) {

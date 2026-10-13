@@ -41,10 +41,9 @@ export function step(car, world, t, input, dt, events) {
   const g = world.ground(car.x, car.z);
 
   // Latéral : direction au joystick, plus réactif quand on va vite
-  const steerSpeed = 3 + Math.min(car.v, 30) * 0.32;
   // On dirige la voiture au sol comme en l'air, même pendant les cascades
-  const targetVx = input.steer * steerSpeed;
-  car.vx += (targetVx - car.vx) * Math.min(1, dt * 6);
+  const targetVx = input.steer * steerSpeedFor(car.v);
+  car.vx += (targetVx - car.vx) * Math.min(1, dt * 9);
   // Virage : la voiture glisse vers l'extérieur, d'autant plus vite qu'elle roule vite (il faut contre-braquer)
   car.drift = driftSpeed(world, car);
   car.x += (car.vx + car.drift) * dt;
@@ -159,7 +158,9 @@ export function driftSpeed(world, car) {
   return Math.max(-DRIFT_MAX, Math.min(DRIFT_MAX, -k * car.v * car.v * DRIFT));
 }
 // Braquage qui compense exactement le glissement (pour le pilote automatique des simulations)
-export function driftSteer(car) { return -(car.drift || 0) / (3 + Math.min(car.v, 30) * 0.32); }
+export function driftSteer(car) { return -(car.drift || 0) / steerSpeedFor(car.v); }
+// Vitesse latérale à fond de braquage (m/s) : de bord à bord de la piste (42 m) en un peu plus de 2 s à pleine vitesse
+export function steerSpeedFor(v) { return 6 + Math.min(v, 30) * 0.45; }
 
 export function launchSpeed(t, pct) {
   return t.vmax * Math.min(1, pct / 100);
