@@ -311,7 +311,7 @@ function runStep(dt) {
   for (let i = 0; i < sub; i++) {
     const onLauncher = car.z > 3;
     if (onLauncher) { car.z -= car.v * h; car.y = world.launcherTop; car.distance = 0; }
-    else step(car, worldPhys, tune, { steer: joy.steer }, h, events);
+    else step(car, worldPhys, tune, { steer: Math.sign(joy.steer) * Math.abs(joy.steer) ** 1.8 }, h, events); // réponse douce au petit braquage, pleine à fond
     if (!car.air && !onLauncher) {
       const p = layout.plateTouch(car.x, car.z); // le moindre contact avec la plaque déclenche le boost
       if (p && car._plate !== p) { car.v += 5; car._plate = p; showTrick('BOOST !'); sfx.boost(); fovKick = Math.max(fovKick, 6); }
@@ -418,7 +418,7 @@ function frame(now) {
   // Voiture
   carMesh.position.set(car.x, car.y, car.z);
   // la voiture s'oriente quand on dirige, et braque vers l'intérieur d'un virage de la piste
-  const yaw = car.air ? 0 : Math.max(-0.35, Math.min(0.35, -car.vx * 0.035 - (state === 'home' ? 0 : camAim * 0.6)));
+  const yaw = car.air ? 0 : Math.max(-0.14, Math.min(0.14, -car.vx * 0.018 - (state === 'home' ? 0 : camAim * 0.3)));
   carMesh.rotation.set(car.pitch, yaw, car.roll);
   if (state === 'launch' && holding) carMesh.position.x += Math.sin(clock * 60) * 0.02 * (pct / 100);
 
@@ -457,7 +457,9 @@ function frame(now) {
   if (car.boostLeft > 0) fovKick = Math.max(fovKick, 7);
   if (state === 'run' && car.ended && crashShake > -0.6) crashShake -= dt;
   if (crashShake > 0) { crashShake -= dt; camera.position.x += (Math.random() - 0.5) * crashShake; camera.position.y += (Math.random() - 0.5) * crashShake; }
-  fovKick *= Math.pow(0.35, dt); fovNow += (fovKick - fovNow) * Math.min(1, dt * 4); camera.fov = 60 + fovNow; camera.updateProjectionMatrix();
+  fovKick *= Math.pow(0.35, dt); fovNow += (fovKick - fovNow) * Math.min(1, dt * 4); // Plus on va vite, plus l'angle s'élargit : c'est ce qui donne l'impression de vitesse
+  const speedFov = state === 'run' ? Math.max(0, Math.min(10, (car.v * KMH - 55) / 4)) : 0;
+  camera.fov = 60 + fovNow + speedFov; camera.updateProjectionMatrix();
   sun.position.set(car.x + 16, car.y + 30, car.z + 12); sun.target.position.set(car.x, car.y, car.z - 8);
   // Virages : la piste se courbe à l'écran devant la voiture
   updateBend(layout, -car.z);

@@ -9,6 +9,7 @@ Direction plus vive : on traverse la piste d'un bord à l'autre sans se sentir b
 - **Gain en direct** : pendant la course, un indicateur affiche le gain actuel (distance × multiplicateur + pièces) et le multiplicateur.
 - **Sensation de vitesse** : la vitesse affichée est la vitesse réelle ; à partir de 70 km/h, des traits de vitesse apparaissent autour de l'écran.
 - **Caméra plus basse et plus proche** : les pentes se lisent mieux dans la trajectoire.
+- **Direction plus douce** : le braquage léger répond moins brusquement, la voiture tourne moins sur elle-même, et l'angle de vue s'élargit à grande vitesse.
 - **Temps en l'air récompensé** : un saut de plus de 0,5 s rapporte des pièces bonus.
 - **Décor qui change** : les thèmes de décor alternent tous les 450 m le long de la piste.
 
