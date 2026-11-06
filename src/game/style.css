@@ -6,6 +6,11 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 #app { position: relative; margin: 0 auto; width: 100%; height: 100dvh; overflow: hidden; background: #8FD0F2; }
 #gl { position: absolute; inset: 0; }
 #gl canvas { display: block; width: 100%; height: 100%; }
+/* Traits de vitesse (à partir de 70 km/h) : rayons blancs qui partent du centre, sans bloquer les touches */
+.speedfx { position: absolute; inset: 0; pointer-events: none; opacity: 0; z-index: 3; transition: opacity 0.15s linear;
+  background: repeating-conic-gradient(from 0deg at 50% 42%, rgba(255,255,255,0.75) 0deg 0.9deg, transparent 0.9deg 7deg);
+  -webkit-mask-image: radial-gradient(circle at 50% 42%, transparent 30%, #000 80%);
+  mask-image: radial-gradient(circle at 50% 42%, transparent 30%, #000 80%); }
 #app.shake #gl { animation: shake 0.09s infinite; }
 @keyframes shake { 0% { transform: translate(2px, -1px) rotate(0.3deg); } 50% { transform: translate(-2px, 2px) rotate(-0.3deg); } 100% { transform: translate(1px, 1px) rotate(0.2deg); } }
 .outline { -webkit-text-stroke: 1.2px var(--ink); text-shadow: 0 3px 0 var(--ink); }

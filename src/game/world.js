@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import * as A from '../assets3d.js';
 import { buildPassage } from './passages.js';
 import { noCull } from './bend.js';
-import { themeFor, pond } from './themes.js';
+import { themeFor, themeIndex, THEMES, pond } from './themes.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const CHUNK = 150, AHEAD = 2, BEHIND = 1; // 2 tronçons devant : le terrain chargé va toujours au moins 300 m plus loin, au-delà du brouillard
@@ -191,7 +191,9 @@ export class World {
       const o = pond(rad, water, rim); o.quaternion.setFromUnitVectors(up, nrm); o.position.set(x, ground(x, z) - 0.05, z); deco.add(o);
     };
     // Décor propre au monde du niveau (arbres, bâtiments, animaux…)
-    yield* T.decor({ put, r, L, z0, z1, i, deco, ground, pond: placePond });
+    // Le décor change au fil de la piste : un bloc de 450 m par thème voisin du monde du niveau
+    const TD = THEMES[(themeIndex(L.level) + Math.floor(Math.max(0, -z0) / 450)) % THEMES.length];
+    yield* TD.decor({ put, r, L, z0, z1, i, deco, ground, pond: placePond });
     yield;
     // Panneaux de distance tous les 250 m
     for (let d = 250; d < L.length; d += 250) if (-d <= z0 && -d > z1) put(A.sign(`${d} m`, 1.3), (d / 250) % 2 ? L.opt.half + 2.5 : -(L.opt.half + 2.5), -d, 0, 0);

@@ -45,7 +45,7 @@ export function makeLayout(level, gemsTaken = []) {
     const t = rs(), SW = P.sections;
     const kind = t < SW.descente ? 'descente' : t < SW.descente + SW.montee ? 'montee' : t < SW.descente + SW.montee + SW.plat ? 'plat' : 'normal';
     const len = kind === 'descente' ? 120 + rs() * 80 : kind === 'plat' ? 90 + rs() * 70 : kind === 'montee' ? 150 + rs() * 70 : 80 + rs() * 60;
-    const amp = kind === 'descente' ? (0.06 + rs() * 0.03) * (1 + 0.3 * D) : kind === 'montee' ? -0.03 : 0;
+    const amp = kind === 'descente' ? (0.07 + rs() * 0.035) * (1 + 0.3 * D) : kind === 'montee' ? -0.03 : 0;
     const b = Math.min(LEN, a + len);
     secs.push({ kind, a, b, amp });
     if (kind === 'plat') platZones.push({ a, b });

@@ -15,9 +15,8 @@ import { decodeSave } from './transfer.js';
 import { VERSION } from './version.js';
 
 const $ = (id) => document.getElementById(id);
-// Vitesse affichée : le décor low-poly donne une impression de vitesse plus faible que la vitesse physique,
-// on affiche donc une valeur à l'échelle du visuel (m/s × 3,6 × 0,55)
-const KMH = 3.6 * 0.55;
+// Vitesse affichée : la vitesse réelle de la simulation (m/s × 3,6), comme dans Sled Surfers
+const KMH = 3.6;
 $('v-version').textContent = `v${VERSION}`;
 const eco = new Economy();
 const sfx = new Sound();
@@ -336,7 +335,11 @@ function runStep(dt) {
   for (const e of events) {
     if (e.type === 'rampboost') { sfx.boost(); showTrick('RAMPE BOOST !'); fovKick = Math.max(fovKick, 8); }
     if (e.type === 'takeoff') sfx.takeoff();
-    if (e.type === 'land') sfx.land();
+    if (e.type === 'land') {
+      sfx.land();
+      // Temps en l'air récompensé : pièces bonus au-delà de 0,5 s de vol
+      if (e.airTime > 0.5) { const bonus = Math.round((e.airTime - 0.5) * 12) * 5; if (bonus > 0) { runCoins += bonus; popValue(`+${bonus}`, 'coin'); showTrick(`AIR ${e.airTime.toFixed(1)} s`); } }
+    }
     if (e.type === 'crash') { sfx.smash(); sfx.fail(); showTrick('CRASH !'); crashShake = 0.5; }
     if (e.type === 'trick') {
       const parts = []; if (e.flips) parts.push(e.flips > 1 ? `${e.flips} FRONT FLIPS` : 'FRONT FLIP'); if (e.rolls) parts.push(e.rolls > 1 ? `${e.rolls} TONNEAUX` : 'TONNEAU');
@@ -375,7 +378,10 @@ function updateRunHud() {
   $('prog-best').style.bottom = `${Math.min(100, eco.s.best / layout.length * 100)}%`; $('prog-best').hidden = eco.s.best <= 0;
   const kmh = Math.max(0, car.v * KMH);
   $('v-kmh').textContent = Math.round(kmh);
-  $('speed-arc').setAttribute('stroke-dasharray', `${Math.min(100, kmh / 90 * 100)} 100`);
+  $('speed-arc').setAttribute('stroke-dasharray', `${Math.min(100, kmh / 120 * 100)} 100`);
+  // Traits de vitesse : apparaissent à partir de 70 km/h et s'intensifient jusqu'à 100 km/h
+  const streak = Math.max(0, Math.min(1, (kmh - 70) / 30));
+  $('speedfx').style.opacity = streak.toFixed(2);
   if (car.boostLeft <= 0) $('b-boost').classList.remove('on');
 }
 
@@ -434,8 +440,9 @@ function frame(now) {
     const sNow = Math.max(0, -car.z), aim = Math.max(-0.35, Math.min(0.35, 2 * layout.curve.offsetFrom(sNow, sNow + 80) / 80));
     camAim += (aim - camAim) * Math.min(1, dt * 2);
     const ca = Math.sin(camAim);
-    const tp = new THREE.Vector3(car.x - camSide - (12 + lift * 0.4) * ca, car.y + 8.2 + lift, car.z + 12 + lift * 0.4);
-    const tl = new THREE.Vector3(car.x + lead + 40 * ca, car.y - 4 + lift * 0.3, car.z - 40);
+    // Caméra plus basse et plus proche qu'avant : la pente se lit dans la trajectoire et la voiture reste grande à l'écran
+    const tp = new THREE.Vector3(car.x - camSide - (9 + lift * 0.4) * ca, car.y + 5.4 + lift, car.z + 9 + lift * 0.4);
+    const tl = new THREE.Vector3(car.x + lead + 28 * ca, car.y - 2.6 + lift * 0.3, car.z - 28);
     // Sous une voûte, la caméra descend pour rester dans le passage
     const ceil = layout.ceilingAt(tp.z);
     if (ceil < Infinity) { const gy = layout.ground(tp.x, tp.z, 1).h; tp.y = Math.min(tp.y, gy + ceil); tl.y = Math.min(tl.y, gy + ceil - 3); }
