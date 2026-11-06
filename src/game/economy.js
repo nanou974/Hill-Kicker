@@ -1,7 +1,7 @@
 // État du joueur, sauvegarde locale et règles de l'économie (voir docs/GDD.md).
 import {
   UPGRADES, upgradeCost, multValue, LIVES_MAX, LIFE_REGEN_MS, CHEST_MS, GEM_MS,
-  BLUE_PER_RACE, CHEST_BLUE, GEMS_LEVEL_END, chestYellow, boosterDuration, VEHICLE_PRICES,
+  BLUE_PER_RACE, CHEST_BLUE, GEMS_LEVEL_END, chestYellow, boosterDuration, boosterCost, VEHICLE_PRICES,
 } from './economy-rules.js';
 
 import { encodeSave, decodeSave } from './transfer.js';
@@ -54,6 +54,7 @@ export class Economy {
   cost(key) { return upgradeCost(key, this.s.up[key]); }
   mult() { return multValue(this.s.up.mult); }
   boosterTime() { return boosterDuration(this.s.booster); }
+  boosterCost() { return boosterCost(this.s.booster); }
 
   buy(key) {
     const c = this.cost(key);
@@ -61,8 +62,9 @@ export class Economy {
     this.s.yellow -= c; this.s.up[key]++; this.save(); return true;
   }
   buyBooster() {
-    if (this.s.gems < 1) return false;
-    this.s.gems -= 1; this.s.booster++; this.save(); return true;
+    const c = this.boosterCost();
+    if (this.s.gems < c) return false;
+    this.s.gems -= c; this.s.booster++; this.save(); return true;
   }
   openChest() {
     if (this.chestIn() > 0) return null;

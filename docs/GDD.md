@@ -92,26 +92,26 @@ Quatre améliorations, achetées en monnaie jaune. Chaque palier change visiblem
 | Lanceur | Vitesse de départ plus élevée à pourcentage égal | Tapis plus long, moteur plus gros, flammes ou néons |
 | Multiplicateur de gains | Multiplie la distance pour calculer le gain | Peinture brillante, puis chromes, puis finitions dorées |
 
-**Coûts par palier** (monnaie jaune) : pas de nombre de paliers fixe, on améliore autant que nécessaire pour atteindre la ligne d'arrivée. Coût du palier n = base × 1,35^(n−1), à régler pendant les essais pour qu'un niveau se termine après une trentaine d'améliorations au total. Coûts identiques à chaque niveau, puisque tout repart de zéro.
+**Coûts par palier** (monnaie jaune) : pas de nombre de paliers fixe, on améliore autant que nécessaire pour atteindre la ligne d'arrivée. Coût du palier n = base × 1,3^(n−1), arrondi à 5. Coûts identiques à chaque niveau, puisque tout repart de zéro.
 
 | Palier | Pneus | Suspensions | Lanceur |
 | --- | --- | --- | --- |
 | 1 | 100 | 100 | 150 |
-| 2 | 135 | 135 | 205 |
-| 3 | 180 | 180 | 275 |
-| 4 | 245 | 245 | 370 |
-| 5 | 330 | 330 | 500 |
-| … | ×1,35 | ×1,35 | ×1,35 |
+| 2 | 130 | 130 | 195 |
+| 3 | 170 | 170 | 255 |
+| 4 | 220 | 220 | 330 |
+| 5 | 285 | 285 | 430 |
+| … | ×1,3 | ×1,3 | ×1,3 |
 
-**Multiplicateur** : prix = 100 pour la première amélioration, puis 100 × 1,25 × n, où n est le nombre d'améliorations du multiplicateur déjà achetées (100, 125, 250, 375, 500…). Valeur : ×1 au départ, +0,25 par amélioration (×1,25, ×1,5, ×1,75…).
+**Multiplicateur** : prix = 100 × 1,25^n, où n est le nombre d'améliorations du multiplicateur déjà achetées (100, 125, 155, 195, 245…). Valeur : ×1 au départ, +0,25 par amélioration (×1,25, ×1,5, ×1,75…).
 
 ## Booster et gemmes
 
 Le booster s'active à tout moment pendant la course avec un bouton dédié. Il n'existe pas au départ et s'achète avec des gemmes.
 
 - Durée d'activation définie, qui augmente à chaque amélioration.
-- Chaque amélioration coûte toujours 1 gemme.
-- Gemmes gagnées : 1 par heure, quelques-unes ramassées sur la piste, 2 en finissant le niveau (ligne d'arrivée).
+- Coût : 1 gemme pour le premier booster, puis une de plus à chaque amélioration (1, 2, 3…).
+- Gemmes gagnées : 1 toutes les 3 heures, quelques-unes ramassées sur la piste, 2 en finissant le niveau (ligne d'arrivée).
 - Gemmes de la piste : 4 par niveau. Chacune ne se ramasse qu'une seule fois : elle est créditée tout de suite et disparaît pour tous les lancers suivants du niveau. Les gemmes restantes sont affichées sur la barre de progression, à leur distance.
 
 ## Économie
@@ -119,15 +119,15 @@ Le booster s'active à tout moment pendant la course avec un bouton dédié. Il 
 | Ressource | Sert à | Comment l'obtenir |
 | --- | --- | --- |
 | Monnaie jaune | Pneus, suspensions, lanceur, multiplicateur | Fin de course : distance parcourue en mètres × multiplicateur + pièces ramassées ; coffre |
-| Monnaie bleue | Acheter d'autres véhicules | 500 à chaque fin de course ; 250 dans le coffre |
-| Gemmes | Booster | 1 par heure, sur la piste, 2 à l'arrivée |
+| Monnaie bleue | Acheter d'autres véhicules | 500 à chaque fin de course ; 100 dans le coffre |
+| Gemmes | Booster | 1 toutes les 3 heures, sur la piste, 2 à l'arrivée |
 | Vies | 1 vie = 1 lancement | 25 au départ et au maximum, recharge de 1 toutes les 12 min |
 
 **Musique de fond** (fichiers OGG pré-calculés dans `assets/music`, générés par `tools/music-export.mjs` à partir de `src/game/music.js` ; lus comme des fichiers audio, enchaînés à l'échantillon près, l'arpège de course est une piste séparée qui entre en fondu) : deux morceaux électro originaux qui alternent à chaque fin de boucle (morceau 2 en Ré mineur : Rém – Sib – Do – La puis Solm – Sib – Do – La, motif « ta-ta-ta, taaa… ta… ta, ta », basse plus continue avec septième). Morceau 1 : boucle électro énergique à 128 BPM en La mineur, synthétisée en direct (aucun fichier audio) : partie A Lam – Fa – Rém – Mi puis partie B Lam – Sol – Fa – Mi, jouées A A B B (environ 30 s). Grosse caisse lourde à chaque temps avec relances, caisse claire et clap sur 2 et 4 avec notes fantômes et roulements de fin de phrase, charleston en doubles croches. Vraie basse de synthé analogique (deux dents de scie désaccordées + sous-octave, filtre à enveloppe, légère saturation, sub grave) en croches syncopées qui « pompe » avec la grosse caisse. Mélodie entêtante : un seul motif rythmique (3 + 3 + 2, trois notes rapides, une note tenue) répété sur chaque accord, seules les hauteurs suivent l'harmonie ; registre médium-grave (Sol#3–Fa5), synthé chaud à l'attaque marquée, doublé à l'octave inférieure, avec glissade et vibrato. Pendant la course, un arpège discret s'ajoute. Fondu d'entrée, pause quand l'appli passe en arrière-plan, volume réglable dans les paramètres.
 
 **Pièces sur la piste** : bronze = 1, argent = 3, or = 5, ajoutées au gain total en fin de course. À chaque ramassage, la valeur s'affiche (+1, +3, +5) avec un son propre à chaque pièce.
 
-**Coffre** : disponible toutes les 10 min sur l'écran d'amélioration. Il contient de la monnaie jaune et 250 en monnaie bleue. Part jaune = 2 × le coût de la prochaine amélioration la moins chère, plafonnée au coût du prochain palier du multiplicateur. Premier coffre : 200 fixe (seule exception au plafond), disponible 10 min après le début du jeu.
+**Coffre** : disponible toutes les heures sur l'écran d'amélioration. Il contient de la monnaie jaune et 100 en monnaie bleue. Part jaune = le coût de la prochaine amélioration la moins chère, plafonnée au coût du prochain palier du multiplicateur. Premier coffre : 150 fixe (seule exception au plafond), disponible 60 min après le début du jeu.
 
 **Vies** : affichées comme une jauge de carburant à 25 cases. À 0 vie, impossible de lancer la voiture jusqu'à la prochaine recharge.
 

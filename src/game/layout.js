@@ -30,8 +30,44 @@ export function obstacleGap(o, x, z) {
 export function makeLayout(level, gemsTaken = []) {
   const r = rng(1000 + level * 77);
   const P = trackFor(level), D = difficulty(level), LEN = levelLength(level); // longueur de ce niveau
-  const opt = { half: TRACK.half, slope: 0.148 - (Math.min(level, 20) - 1) * 0.0009, relief: P.relief };
-  const tarmac = [], ramps = [], plates = [], coins = [], gems = [], props = [], arches = [], forks = [], obstacles = [], passages = [], slow = [];
+  // Zone lente de ce monde, ou terrain lourd par défaut (utilisé par les replats des sections de terrain)
+  const PLAT_MU = 1.1; // frottement du terrain lourd (replat)
+  const SLOW = P.slow || { name: 'herbe haute', color: [0.36, 0.56, 0.24], mu: PLAT_MU };
+  const PROFILE = { ...P, slow: SLOW };
+
+  // Sections de terrain le long de la piste : descentes raides qui font accélérer, replats lourds qui freinent
+  // (zones de terrain lourd, affichées comme les zones lentes) et montées. Le dénivelé ajouté est compensé
+  // sur toute la piste : la pente moyenne ne change pas, seul le rythme change. Plus de descentes quand la difficulté monte.
+  const rs = rng(19000 + level * 29);
+  const N = LEN + 800, drop = new Float32Array(N); // pente descendante ajoutée à chaque mètre (positive = descente)
+  const platZones = [], secs = [];
+  for (let a = 260 + rs() * 120; a < LEN - 200;) {
+    const t = rs(), SW = P.sections;
+    const kind = t < SW.descente ? 'descente' : t < SW.descente + SW.montee ? 'montee' : t < SW.descente + SW.montee + SW.plat ? 'plat' : 'normal';
+    const len = kind === 'descente' ? 120 + rs() * 80 : kind === 'plat' ? 90 + rs() * 70 : kind === 'montee' ? 150 + rs() * 70 : 80 + rs() * 60;
+    const amp = kind === 'descente' ? (0.06 + rs() * 0.03) * (1 + 0.3 * D) : kind === 'montee' ? -0.03 : 0;
+    const b = Math.min(LEN, a + len);
+    secs.push({ kind, a, b, amp });
+    if (kind === 'plat') platZones.push({ a, b });
+    a = b + 40 + rs() * 120;
+  }
+  // Bilan d'altitude nul : on ajuste les montées (ou les descentes) pour que la piste finisse à la même hauteur,
+  // sans ajouter de pente sur l'ensemble du tracé
+  const sumOf = (k) => secs.reduce((t, x) => t + (x.kind === k ? x.amp * (x.b - x.a) : 0), 0);
+  const down = sumOf('descente'), up = -sumOf('montee'), ratio = up > 1e-6 ? down / up : 1;
+  // Répartition à parts égales (descentes × 1/√r, montées × √r), chaque facteur borné pour garder des montées jouables
+  const kD = Math.min(1.4, Math.max(0.7, 1 / Math.sqrt(ratio))), kM = Math.min(1.4, Math.max(0.7, Math.sqrt(ratio)));
+  for (const x of secs) {
+    if (x.kind === 'descente') x.amp *= kD;
+    if (x.kind === 'montee') x.amp *= kM;
+    for (let m = Math.floor(x.a); m < Math.min(N, Math.ceil(x.b)); m++) drop[m] += x.amp * Math.max(0, Math.min(1, (m - x.a) / 20, (x.b - m) / 20));
+  }
+  // Dénivelé ajouté (m) à chaque distance
+  const hx = new Float32Array(N);
+  for (let m = 1; m < N; m++) hx[m] = hx[m - 1] - drop[m - 1];
+
+  const opt = { half: TRACK.half, slope: 0.148 - (Math.min(level, 20) - 1) * 0.0009, relief: P.relief, extra: hx };
+  const tarmac = [], ramps = [], plates = [], coins = [], gems = [], props = [], arches = [], forks = [], obstacles = [], passages = [], slow = [], heavy = [];
 
   // Bifurcations : une colline infranchissable sépare la piste en deux chemins sur 150 à 200 m.
   // Un côté est le chemin des pièces (pièces d'or + rampe), l'autre le chemin rapide (goudron + plaque boost).
@@ -90,6 +126,12 @@ export function makeLayout(level, gemsTaken = []) {
   // Position dans une ouverture (avec une marge) ?
   const inOpening = (x, z, margin) => passages.some(p => z <= p.z0 && z >= p.z1 && p.openings && p.openings.some(o => Math.abs(x - openX(o, p, z)) < o.w / 2 - margin));
 
+  // Replats de terrain lourd : pas dans un passage étroit ni sur une bifurcation
+  for (const { a, b } of platZones) {
+    const z0 = -a, z1 = -b;
+    if (nearPassage(z0, 30, 30) || forks.some(f => z1 < f.z0 + 20 && z0 > f.z1 - 20)) continue;
+    heavy.push({ z0, z1 });
+  }
   // Zones goudronnées : bandes larges régulières
   for (let s = 90; s < LEN - 60; s += 130 + r() * 120) {
     tarmac.push({ z0: -s, z1: -(s + 30 + r() * 30), x: (r() - 0.5) * 18, w: 7 + r() * 4 });
@@ -236,7 +278,8 @@ export function makeLayout(level, gemsTaken = []) {
   const inSlow = (t, x, z) => { const u = (x - t.x) / t.w, v = (z - (t.z0 + t.z1) / 2) / ((t.z0 - t.z1) / 2); return u * u + v * v < 1 + 0.12 * Math.sin(x * 0.9 + z * 0.7); };
   function surfaceMu(x, z) {
     for (const t of tarmac) if (z < t.z0 && z > t.z1 && Math.abs(x - t.x) < t.w) return TARMAC_MU;
-    for (const t of slow) if (z < t.z0 + 2 && z > t.z1 - 2 && inSlow(t, x, z)) return P.slow.mu;
+    for (const t of slow) if (z < t.z0 + 2 && z > t.z1 - 2 && inSlow(t, x, z)) return SLOW.mu;
+    for (const t of heavy) if (z < t.z0 && z > t.z1) return PLAT_MU;
     return 1;
   }
   function obstacleAt(x, z) {
@@ -248,7 +291,7 @@ export function makeLayout(level, gemsTaken = []) {
     return null;
   }
   return {
-    length: LEN, profile: P, curve, slow,
+    length: LEN, profile: PROFILE, curve, slow,
     // Courbure de la piste à la position z de la voiture (1/m) : elle pousse la voiture vers l'extérieur du virage
     curveAt(z) { return curve.kAt(-z); },
     level, opt, tarmac, ramps, plates, coins, gems, props, arches, forks, obstacles, passages, ridgeHalf, openX,

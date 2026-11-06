@@ -30,7 +30,7 @@ function run(level, up, pct = 100, steer = 0) {
     if (px !== null) s = (px - car.x) * 0.5 * gk;
     if (o && !o.own) s = o.w ? (Math.abs(o.x - o.w - car.x) < Math.abs(o.x + o.w - car.x) ? -gk : gk) : car.x >= o.x ? gk : -gk;
     // ... et compense le glissement dans les virages
-    s += driftSteer(car);
+    s += driftSteer(car, t.steer ?? 1);
     // TRACE=distance : affiche le pilote automatique autour de cette distance (débogage)
     if (process.env.TRACE && Math.abs(-car.z - +process.env.TRACE) < 40 && i % 6 === 0) console.log('   z', (-car.z).toFixed(1), 'x', car.x.toFixed(2), 'v', car.v.toFixed(1), 'braquage', s.toFixed(2), 'cible', px, 'obstacle', o && o.kind, 'glisse', (car.drift || 0).toFixed(2), car.air ? 'en l\'air' : '');
     step(car, world, t, { steer: Math.max(-1, Math.min(1, s)), up: 0 }, 1 / 60, ev);

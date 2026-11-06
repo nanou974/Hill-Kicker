@@ -167,7 +167,7 @@ function refreshHome() {
   const bt = eco.boosterTime();
   $('v-boostlvl').textContent = s.booster;
   $('v-boosttxt').textContent = s.booster === 0 ? 'BOOSTER' : `BOOSTER ${String(bt).replace('.', ',')} s`;
-  $('b-booster').disabled = s.gems < 1;
+  $('b-booster').disabled = s.gems < eco.boosterCost();
   const cards = $('cards'); cards.innerHTML = '';
   for (const u of UPGRADES) {
     const lvl = s.up[u.key], cost = eco.cost(u.key);
@@ -368,6 +368,8 @@ function updateRunHud() {
   const d = Math.min(car.distance, layout.length);
   $('v-dist').textContent = `${fmt(d)}m`;
   $('v-runcoins').textContent = `+${runCoins}`; $('v-rungems').textContent = `+${runGems}`;
+  // Gain en direct : exactement ce que rapportera la course si on s'arrête ici (distance × multiplicateur + pièces)
+  $('v-livegain').textContent = `${fmt(Math.round(d * eco.mult()) + runCoins)} · ×${String(eco.mult()).replace('.', ',')}`;
   const p = d / layout.length * 100;
   $('prog-fill').style.height = `${p}%`; $('prog-dot').style.bottom = `${p}%`; $('v-prog').textContent = `${Math.floor(p)}%`;
   $('prog-best').style.bottom = `${Math.min(100, eco.s.best / layout.length * 100)}%`; $('prog-best').hidden = eco.s.best <= 0;

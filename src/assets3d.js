@@ -43,6 +43,8 @@ export function heightAt(x, z, opt = {}) {
       h += slope * P * R.terraces[1] * (f - sm);
     }
   }
+  // Dénivelé ajouté par les sections de terrain (descentes, replats, montées), tabulé au mètre près
+  if (opt.extra) { const s = Math.min(opt.extra.length - 2, Math.max(0, -z)), i = Math.floor(s); h += opt.extra[i] + (opt.extra[i + 1] - opt.extra[i]) * (s - i); }
   const ax = Math.abs(x);
   const half = opt.half ?? 16;
   if (ax > half) { const d = ax - half; h += Math.min(d * 0.22, 9) + Math.max(0, d - 40) * 0.25 + Math.sin(d * 0.15 + z * 0.05) * Math.min(d * 0.06, 2.5); }

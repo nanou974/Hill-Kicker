@@ -13,6 +13,10 @@ export function tuning(up) {
     mu: 0.10 + 0.12 * Math.pow(0.87, up.pneus),      // frottement de roulement sur terrain de base
     bump: 0.55 * Math.pow(0.86, up.susp),               // perte d'énergie dans les bosses
     vmax: 20.5 + 2.2 * up.lanceur,                      // vitesse de départ à 100 %
+    // Compromis : un lanceur plus puissant fait glisser davantage dans les virages (plafonné)
+    drift: Math.min(2.5, 1 + 0.06 * up.lanceur),
+    // Compromis : des suspensions plus souples alourdissent la voiture, qui répond moins vite au braquage (plancher)
+    steer: Math.max(0.6, 1 - 0.025 * up.susp),
   };
 }
 
@@ -42,10 +46,10 @@ export function step(car, world, t, input, dt, events) {
 
   // Latéral : direction au joystick, plus réactif quand on va vite
   // On dirige la voiture au sol comme en l'air, même pendant les cascades
-  const targetVx = input.steer * steerSpeedFor(car.v);
+  const targetVx = input.steer * steerSpeedFor(car.v) * (t.steer ?? 1);
   car.vx += (targetVx - car.vx) * Math.min(1, dt * 9);
   // Virage : la voiture glisse vers l'extérieur, d'autant plus vite qu'elle roule vite (il faut contre-braquer)
-  car.drift = driftSpeed(world, car);
+  car.drift = driftSpeed(world, car, t.drift ?? 1);
   car.x += (car.vx + car.drift) * dt;
   if (Math.abs(car.x) > TRACK_HALF) { car.x = Math.sign(car.x) * TRACK_HALF; car.vx = 0; }
   // Colline d'une bifurcation : la percuter arrête net la voiture et termine la course
@@ -153,12 +157,12 @@ function estimateAirLeft(height, vy) {
 
 // Glissement latéral dans un virage (m/s, vers l'extérieur) : courbure × vitesse², plafonné
 export const DRIFT = 0.6, DRIFT_MAX = 6;
-export function driftSpeed(world, car) {
+export function driftSpeed(world, car, dm = 1) {
   const k = world.curveAt ? world.curveAt(car.z) : 0;
-  return Math.max(-DRIFT_MAX, Math.min(DRIFT_MAX, -k * car.v * car.v * DRIFT));
+  return Math.max(-DRIFT_MAX, Math.min(DRIFT_MAX, -k * car.v * car.v * DRIFT * dm));
 }
 // Braquage qui compense exactement le glissement (pour le pilote automatique des simulations)
-export function driftSteer(car) { return -(car.drift || 0) / steerSpeedFor(car.v); }
+export function driftSteer(car, sm = 1) { return -(car.drift || 0) / (steerSpeedFor(car.v) * sm); }
 // Vitesse latérale à fond de braquage (m/s) : de bord à bord de la piste (42 m) en un peu plus de 2 s à pleine vitesse
 export function steerSpeedFor(v) { return 6 + Math.min(v, 30) * 0.45; }
 
