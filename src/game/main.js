@@ -304,18 +304,18 @@ $('b-continue').addEventListener('click', () => { show('p-results', false); back
 $('b-nextlevel').addEventListener('click', () => { show('p-level', false); buildCarMesh(); backHome(); });
 function backHome() { buildLevel(); setScreen('home'); refreshHome(); }
 
-function runStep(dt) {
+// Pas de simulation fixe : la trajectoire est identique quel que soit le téléphone
+const FIXED = 1 / 60;
+let physAcc = 0;
+function runStep(h) {
   const worldPhys = { ground: (x, z) => layout.ground(x, z, tune.mu), rampAt: layout.rampAt, rampTouch: layout.rampTouch, barrier: layout.barrier, obstacleAt: layout.obstacleAt, curveAt: layout.curveAt };
   const events = [];
-  const sub = 4, h = dt / sub;
-  for (let i = 0; i < sub; i++) {
-    const onLauncher = car.z > 3;
-    if (onLauncher) { car.z -= car.v * h; car.y = world.launcherTop; car.distance = 0; }
-    else step(car, worldPhys, tune, { steer: Math.sign(joy.steer) * Math.abs(joy.steer) ** 1.8 }, h, events); // réponse douce au petit braquage, pleine à fond
-    if (!car.air && !onLauncher) {
-      const p = layout.plateTouch(car.x, car.z); // le moindre contact avec la plaque déclenche le boost
-      if (p && car._plate !== p) { car.v += 5; car._plate = p; showTrick('BOOST !'); sfx.boost(); fovKick = Math.max(fovKick, 6); }
-    }
+  const onLauncher = car.z > 3;
+  if (onLauncher) { car.z -= car.v * h; car.y = world.launcherTop; car.distance = 0; }
+  else step(car, worldPhys, tune, { steer: Math.sign(joy.steer) * Math.abs(joy.steer) ** 1.8 }, h, events); // réponse douce au petit braquage, pleine à fond
+  if (!car.air && !onLauncher) {
+    const p = layout.plateTouch(car.x, car.z); // le moindre contact avec la plaque déclenche le boost
+    if (p && car._plate !== p) { car.v += 5; car._plate = p; showTrick('BOOST !'); sfx.boost(); fovKick = Math.max(fovKick, 6); }
   }
   // Pièces et gemmes
   for (const c of layout.coins) if (!c.taken && Math.abs(c.z - car.z) < 1.6 && Math.abs(c.x - car.x) < 1.5) {
@@ -407,9 +407,19 @@ function frame(now) {
   if (fpsOn) { fpsFrames++; fpsTime += (now - (frame.prev ?? now)) / 1000; if (fpsTime >= 0.5) { const f = Math.round(fpsFrames / fpsTime); $('fps').textContent = f + ' FPS'; $('fps').classList.toggle('low', f < 45); fpsFrames = 0; fpsTime = 0; } }
   autoQuality(Math.min(1, (now - (frame.prev ?? now)) / 1000)); // durée réelle de l'image (non plafonnée)
   frame.prev = now;
-  if (state === 'launch' && holding && !maxed) { pct = Math.min(100, pct + raw * 62); if (pct >= 100) maxed = true; updateGauge(); }
+  if (state === 'launch' && holding && !maxed) {
+    const before = pct; pct = Math.min(100, pct + raw * 62);
+    // Retour de tension : une légère vibration au seuil de lancement, une plus marquée à pleine charge
+    if (before < 50 && pct >= 50) navigator.vibrate?.(12);
+    if (pct >= 100) { maxed = true; navigator.vibrate?.([25, 40, 25]); }
+    updateGauge();
+  }
   if (state === 'launch' && holding && maxed) $('app').classList.add('shake');
-  if (state === 'run' && !window.__hk.freeze) { runStep(dt); updateRunHud(); sfx.engineSet(Math.min(1, Math.max(0, car.v) / 40), !car.ended); }
+  if (state === 'run' && !window.__hk.freeze) {
+    physAcc = Math.min(physAcc + dt, 0.1);
+    while (physAcc >= FIXED && state === 'run') { runStep(FIXED); physAcc -= FIXED; }
+    updateRunHud(); sfx.engineSet(Math.min(1, Math.max(0, car.v) / 40), !car.ended);
+  }
   if (state === 'launch') sfx.engineSet(holding ? 0.15 + pct / 100 * 0.85 : 0.05);
   if (trickTimer > 0) { trickTimer -= dt; if (trickTimer <= 0) $('trick').hidden = true; }
   world.update(car.z, clock, dt);
@@ -504,7 +514,7 @@ setScreen('home');
 refreshHome();
 requestAnimationFrame(frame);
 // Outils de test : avance rapide de la course
-window.__hk = { eco, get car() { return car; }, get layout() { return layout; }, get state() { return state; }, get camera() { return camera; }, get world() { return world; }, themeIndex, get carMesh() { return carMesh; }, music, sfx, simulate(sec) { for (let t = 0; t < sec && state === 'run'; t += 1 / 30) runStep(1 / 30); },
+window.__hk = { eco, get car() { return car; }, get layout() { return layout; }, get state() { return state; }, get camera() { return camera; }, get world() { return world; }, themeIndex, get carMesh() { return carMesh; }, music, sfx, simulate(sec) { for (let t = 0; t < sec && state === 'run'; t += FIXED) runStep(FIXED); },
   // Outil de test : affiche directement un niveau (et son monde)
   goLevel(n) { eco.s.level = n; eco.s.gemsTaken = []; buildLevel(); refreshHome(); },
   // Outil de test : fige la course (la caméra continue de suivre la voiture)
