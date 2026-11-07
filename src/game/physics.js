@@ -46,11 +46,10 @@ export function step(car, world, t, input, dt, events) {
 
   // Latéral : direction au joystick, plus réactif quand on va vite
   // On dirige la voiture au sol comme en l'air, même pendant les cascades
-  // Le braquage décale la voiture autour de l'axe de la piste. Sans braquage, elle revient doucement vers cet axe.
+  // Le braquage décale la voiture latéralement. Sans braquage, la glisse latérale s'amortit sur place :
+  // la voiture ne cherche pas à revenir au centre de la piste.
   const steerIn = Math.abs(input.steer) > 0.08 ? input.steer : 0;
-  const targetVx = steerIn
-    ? steerIn * steerSpeedFor(car.v) * (t.steer ?? 1)
-    : Math.max(-RECENTRE_MAX, Math.min(RECENTRE_MAX, -car.x * RECENTRE_GAIN));
+  const targetVx = steerIn ? steerIn * steerSpeedFor(car.v) * (t.steer ?? 1) : 0;
   // Accélération latérale plafonnée : plus on va vite, moins la voiture peut changer de cap brusquement
   const maxA = 60 - 1.0 * Math.min(car.v, 30);
   const dvx = Math.max(-maxA * dt, Math.min(maxA * dt, (targetVx - car.vx) * Math.min(1, dt * 6)));
@@ -171,7 +170,6 @@ export function driftSpeed(world, car, dm = 1) {
 // Braquage qui compense exactement le glissement (pour le pilote automatique des simulations)
 export function driftSteer(car, sm = 1) { return -(car.drift || 0) / (steerSpeedFor(car.v) * sm); }
 // Vitesse latérale à fond de braquage (m/s) : de bord à bord de la piste (42 m) en un peu plus de 2 s à pleine vitesse
-export const RECENTRE_GAIN = 0.9, RECENTRE_MAX = 6;
 export function steerSpeedFor(v) { return 6 + Math.min(v, 30) * 0.45; }
 
 export function launchSpeed(t, pct) {

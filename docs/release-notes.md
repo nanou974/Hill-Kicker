@@ -1,9 +1,9 @@
-## Hill Kicker v0.13.2
+## Hill Kicker v0.13.3
 
 Télécharge l'APK ci-dessous et ouvre-le : il s'installe par-dessus la version précédente, ta progression est conservée.
 
 ## Nouveautés
-- **Retour vers la piste** : quand on ne braque plus, la voiture revient doucement vers l'axe de la piste au lieu de glisser sans fin.
+- **Direction plus naturelle** : quand on relâche la direction, la glisse latérale s'arrête sur place. La voiture ne revient plus vers le centre de la piste.
 - **Physique à pas fixe** : la trajectoire est la même sur tous les téléphones, quel que soit le nombre d'images par seconde.
 - **Retour de tension au lancer** : une légère vibration au seuil de charge, et une plus marquée à pleine charge.
 - **Terrain plus varié** : la piste alterne désormais des descentes raides qui font accélérer, des montées qui freinent et des replats de terrain lourd (affichés avec le nom de la zone). La pente moyenne reste la même : seul le rythme change. Chaque monde garde sa propre répartition.
