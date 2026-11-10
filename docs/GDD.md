@@ -83,14 +83,14 @@ La piste est vue de derrière la voiture. Elle est large (4 à 5 voitures de fro
 
 ## Améliorations et visuels
 
-Quatre améliorations, achetées en monnaie jaune. Chaque palier change visiblement la voiture ou le lanceur.
+Quatre améliorations, achetées en monnaie jaune. Un palier toutes les 5 améliorations (5 paliers au maximum) : c'est là qu'un accessoire apparaît ou s'améliore. Chaque niveau commence avec une voiture nue, sans aileron ni prise d'air.
 
 | Amélioration | Effet | Visuel par palier |
 | --- | --- | --- |
 | Pneus | Meilleure adhérence : moins de patinage au lancement, moins de friction en course | Pneus plus larges, jantes sport, puis pneus à crampons |
 | Suspensions | Absorbent les bosses : moins de vitesse perdue sur le relief accidenté | Caisse surélevée, amortisseurs apparents, puis long débattement |
-| Lanceur | Vitesse de départ plus élevée à pourcentage égal | Tapis plus long, moteur plus gros, flammes ou néons |
-| Multiplicateur de gains | Multiplie la distance pour calculer le gain | Peinture brillante, puis chromes, puis finitions dorées |
+| Lanceur | Vitesse de départ plus élevée à pourcentage égal | Lanceur plus gros ; sur la voiture : prise d'air (1), plus grande avec échappements chromés (2), compresseur (3), compresseur et cornets chromés (4), plus gros avec doubles échappements et flammes (5) |
+| Multiplicateur de gains | Multiplie la distance pour calculer le gain | Aileron : becquet (1), aileron bas (2), sur montants avec dérives (3), grand aileron à volet (4), aileron GT géant couleur carrosserie (5) |
 
 **Coûts par palier** (monnaie jaune) : pas de nombre de paliers fixe, on améliore autant que nécessaire pour atteindre la ligne d'arrivée. Coût du palier n = base × 1,3^(n−1), arrondi à 5. Coûts identiques à chaque niveau, puisque tout repart de zéro.
 

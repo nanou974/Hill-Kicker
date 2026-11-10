@@ -26,6 +26,8 @@ addEventListener('pointerdown', () => music.start()); addEventListener('keydown'
 const fmt = (n) => Math.round(n).toLocaleString('fr-FR').replace(/ /g, ' ');
 const mmss = (ms) => { const s = Math.ceil(ms / 1000); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
 const ICONS = { pneus: 'i_pneus', susp: 'i_susp', lanceur: 'i_lanceur', mult: 'i_multi' };
+// Accessoire qui apparaît ou grandit à chaque palier (toutes les 5 améliorations)
+const TIER_NAMES = { pneus: 'ROUES', susp: 'SUSPENSION', lanceur: 'MOTEUR', mult: 'AILERON' };
 
 // ---------- rendu ----------
 const host = $('gl');
@@ -127,7 +129,7 @@ function buildCarMesh() {
   if (carMesh) scene.remove(carMesh);
   const key = eco.s.car;
   const up = eco.s.up;
-  carMesh = A.car(key, { tiers: { pneus: up.pneus, susp: up.susp } }); // paliers visuels toutes les 5 améliorations
+  carMesh = A.car(key, { tiers: { pneus: up.pneus, susp: up.susp, moteur: up.lanceur, aileron: up.mult } }); // paliers visuels toutes les 5 améliorations : la voiture démarre nue
   if (world) world.setLauncherTier(A.tierOf(up.lanceur));
   carMesh.rotation.order = 'YXZ';
   carHeight = new THREE.Box3().setFromObject(carMesh).getSize(new THREE.Vector3()).y;
@@ -180,10 +182,10 @@ function refreshHome() {
     b.addEventListener('click', () => {
       if (!eco.buy(u.key)) return;
       // Nouveau palier visuel (toutes les 5 améliorations) : fanfare et carte qui s'illumine
-      const tierUp = u.key !== 'mult' && s.up[u.key] % A.TIER_STEP === 0 && A.tierOf(s.up[u.key]) <= 5;
+      const tierUp = s.up[u.key] % A.TIER_STEP === 0 && A.tierOf(s.up[u.key]) <= 5 && s.up[u.key] <= 5 * A.TIER_STEP;
       tierUp ? sfx.win() : sfx.buy();
       buildCarMesh(); placeCarOnLauncher(); refreshHome();
-      if (tierUp) { const c = $('cards').children[UPGRADES.indexOf(u)]; if (c) { c.classList.add('tierup'); c.insertAdjacentHTML('beforeend', `<span class="tiertag">PALIER ${A.tierOf(s.up[u.key])} !</span>`); } }
+      if (tierUp) { const c = $('cards').children[UPGRADES.indexOf(u)]; if (c) { c.classList.add('tierup'); c.insertAdjacentHTML('beforeend', `<span class="tiertag">${TIER_NAMES[u.key]} ${A.tierOf(s.up[u.key])} !</span>`); } }
     });
     cards.appendChild(el);
   }
