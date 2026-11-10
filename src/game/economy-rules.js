@@ -16,7 +16,12 @@ export function upgradeCost(key, lvl) {
   const base = UPGRADES.find(u => u.key === key).base;
   return round5(base * Math.pow(1.3, lvl));
 }
-export function multValue(lvl) { return 1 + 0.25 * lvl; }
+// Niveau effectif d'une amélioration : chaque achat compte un peu moins (0,7), et chaque palier
+// (toutes les 5 améliorations) apporte d'un coup un gros bond (+1,5). Aux multiples de 5, on retombe
+// exactement sur l'ancienne progression linéaire : l'équilibre du jeu ne change pas, mais le palier se sent.
+export const TIER_STEP = 5;
+export function tierLevel(n) { n = n || 0; return 0.7 * n + 1.5 * Math.floor(n / TIER_STEP); }
+export function multValue(lvl) { return Math.round((1 + 0.25 * tierLevel(lvl)) * 20) / 20; }
 
 export const LIVES_MAX = 25;
 export const LIFE_REGEN_MS = 12 * 60 * 1000;

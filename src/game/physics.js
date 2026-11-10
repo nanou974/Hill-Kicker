@@ -2,19 +2,25 @@
 // La voiture avance vers -z. Seul le relief la ralentit : pente, frottement de la surface et bosses.
 // Unités : mètres, secondes. 1 unité Three.js = 1 m.
 
+import { tierLevel, TIER_STEP } from './economy-rules.js';
+
 export const G = 9.81;
 export const TRACK_HALF = 21; // demi-largeur roulable de la piste
 export const RAMP_BOOST = 6;  // poussée (m/s) dès que la voiture touche une rampe à booster (≈ +12 km/h affichés)
 const TRICK_TIME = 0.8;       // durée minimale d'une rotation complète (s)
 
 // Paramètres dérivés des améliorations
+// Chaque palier (toutes les 5 améliorations) donne un gros bond de performance : voir tierLevel()
 export function tuning(up) {
+  const e = (k) => tierLevel(up[k]);
+  // Aileron (palier des gains) : appui aérodynamique, la voiture glisse moins dans les virages (−8 % par palier)
+  const wing = Math.max(0.6, 1 - 0.08 * Math.floor((up.mult || 0) / TIER_STEP));
   return {
-    mu: 0.10 + 0.12 * Math.pow(0.87, up.pneus),      // frottement de roulement sur terrain de base
-    bump: 0.55 * Math.pow(0.86, up.susp),               // perte d'énergie dans les bosses
-    vmax: 20.5 + 2.2 * up.lanceur,                      // vitesse de départ à 100 %
-    // Compromis : un lanceur plus puissant fait glisser davantage dans les virages (plafonné)
-    drift: Math.min(2.5, 1 + 0.06 * up.lanceur),
+    mu: 0.10 + 0.12 * Math.pow(0.87, e('pneus')),      // frottement de roulement sur terrain de base
+    bump: 0.55 * Math.pow(0.86, e('susp')),             // perte d'énergie dans les bosses
+    vmax: 20.5 + 2.2 * e('lanceur'),                    // vitesse de départ à 100 %
+    // Compromis : un lanceur plus puissant fait glisser davantage dans les virages (plafonné), l'aileron compense
+    drift: Math.min(2.5, 1 + 0.06 * up.lanceur) * wing,
     // Compromis : des suspensions plus souples alourdissent la voiture, qui répond moins vite au braquage (plancher)
     steer: Math.max(0.6, 1 - 0.025 * up.susp),
   };

@@ -175,5 +175,6 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 /* Nouveau palier d'amélioration */
 .card.tierup { animation: tierup 1.2s ease-out; }
 @keyframes tierup { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,225,77,0.9); } 30% { transform: scale(1.08); box-shadow: 0 0 22px 8px rgba(255,225,77,0.9); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,225,77,0); } }
-.card .tiertag { position: absolute; left: 50%; top: -16px; transform: translateX(-50%) rotate(-4deg); white-space: nowrap; font-size: 15px; color: #FFE14D; -webkit-text-stroke: 1px var(--ink); text-shadow: 0 2px 0 var(--ink); animation: tiertag 2.2s ease-out forwards; pointer-events: none; }
+.card .tiertag { position: absolute; left: 50%; top: -40px; z-index: 5; text-align: center; transform: translateX(-50%) rotate(-4deg); white-space: nowrap; font-size: 15px; color: #FFE14D; -webkit-text-stroke: 1px var(--ink); text-shadow: 0 2px 0 var(--ink); animation: tiertag 3s ease-out forwards; pointer-events: none; }
+.card .tiertag small { display: inline-block; font-size: 11px; margin-top: 2px; padding: 1px 7px; border-radius: 9px; background: rgba(20, 33, 61, 0.88); -webkit-text-stroke: 0; color: #fff; text-shadow: none; }
 @keyframes tiertag { 0% { opacity: 0; transform: translateX(-50%) translateY(10px) rotate(-4deg); } 15% { opacity: 1; transform: translateX(-50%) translateY(0) rotate(-4deg); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%) translateY(-12px) rotate(-4deg); } }

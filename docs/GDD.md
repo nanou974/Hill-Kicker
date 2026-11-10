@@ -85,6 +85,8 @@ La piste est vue de derrière la voiture. Elle est large (4 à 5 voitures de fro
 
 Quatre améliorations, achetées en monnaie jaune. Un palier toutes les 5 améliorations (5 paliers au maximum) : c'est là qu'un accessoire apparaît ou s'améliore. Chaque niveau commence avec une voiture nue, sans aileron ni prise d'air.
 
+**Bond de performance au palier** : chaque achat compte pour 0,7 et chaque palier ajoute d'un coup 1,5 (niveau effectif = 0,7 × n + 1,5 × paliers). Aux multiples de 5, la progression est exactement la même qu'avant ; entre deux paliers, la voiture progresse un peu moins, et le palier se sent nettement (environ 3 fois un achat normal). L'aileron (palier des gains) fait aussi glisser la voiture 8 % de moins par palier dans les virages (jusqu'à −40 %). Au palier, la voiture disparaît dans un nuage de fumée et en ressort avec son nouvel accessoire ; le message indique le gain (« MOTEUR 2 ! DÉPART +18 % »).
+
 | Amélioration | Effet | Visuel par palier |
 | --- | --- | --- |
 | Pneus | Meilleure adhérence : moins de patinage au lancement, moins de friction en course | Pneus plus larges, jantes sport, puis pneus à crampons |

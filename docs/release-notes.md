@@ -1,12 +1,9 @@
-## Hill Kicker v0.14.0
+## Hill Kicker v0.15.0
 
 Télécharge l'APK ci-dessous et ouvre-le : il s'installe par-dessus la version précédente, ta progression est conservée.
 
 ## Nouveautés
-- **La voiture démarre nue** à chaque niveau : plus d'aileron ni de prise d'air de série (Rallye, Supercar, Muscle car).
-- **Un accessoire par palier**, toutes les 5 améliorations :
-  - **Lanceur → moteur** : prise d'air sur le capot, puis échappements chromés, compresseur, cornets d'admission chromés et, au dernier palier, flammes aux échappements.
-  - **Gains → aileron** : becquet, puis aileron bas, aileron sur montants, grand aileron à volet et aileron GT géant.
-  - **Pneus** et **suspensions** : roues plus grandes et suspensions relevées, comme avant.
-- Le message de palier indique l'accessoire gagné (« MOTEUR 3 ! », « AILERON 2 ! »…), y compris pour les gains.
-- Les camionnettes, le camping-car et l'ambulance portent leur moteur sur le toit de la cabine ; la Formule 1 et la Fusée gardent leurs propres ailerons.
+- **Un vrai bond de performance à chaque palier** (toutes les 5 améliorations) : la 5e, la 10e, la 15e amélioration… valent environ trois achats normaux. Entre deux paliers, chaque achat apporte un peu moins qu'avant ; aux paliers, on retrouve exactement la même voiture qu'avant.
+- **L'aileron sert à quelque chose** : chaque palier des gains fait glisser la voiture 8 % de moins dans les virages (jusqu'à −40 %), ce qui compense le glissement d'un lanceur puissant.
+- **Nuage de fumée** : au palier, la voiture disparaît dans un nuage et en ressort avec son nouvel accessoire, avec un bruit de souffle et de moteur.
+- **Message de palier lisible** : il reste affiché et indique le gain réel (« MOTEUR 2 ! DÉPART +18 % », « ROUES 1 ! FROTTEMENT −12 % », « AILERON 1 ! ×2,25 · GLISSE −8 % »). Avant, il était effacé au bout d'une demi-seconde.

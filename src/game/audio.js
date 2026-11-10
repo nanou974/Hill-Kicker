@@ -80,6 +80,8 @@ export class Sound {
   smash() { this.noise(0.25, 0.35, 650); this.noise(0.12, 0.25, 1800, 0.03); this.tone(140, 0.12, 'square', 0.06, 0, 70); }
   click() { this.tone(660, 0.05, 'square', 0.04); }
   buy() { this.tone(880, 0.07, 'square', 0.05); this.tone(1320, 0.12, 'square', 0.05, 0.06); }
+  // Nuage de fumée d'un nouveau palier : souffle grave puis coup de moteur
+  poof() { this.noise(0.55, 0.35, 380); this.noise(0.25, 0.2, 1500, 0.05); this.tone(70, 0.5, 'sawtooth', 0.09, 0.25, 140); }
   win() { [523, 659, 784, 1046, 1318].forEach((f, i) => this.tone(f, 0.25, 'square', 0.06, i * 0.1)); }
 
   // Moteur : léger ronronnement continu, dont la hauteur suit la vitesse (ou la jauge au lanceur)

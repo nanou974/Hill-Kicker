@@ -7,6 +7,7 @@ import { updateBend } from './bend.js';
 import { World } from './world.js';
 import { themeFor, themeIndex } from './themes.js';
 import { createCar, step, tuning, launchSpeed } from './physics.js';
+import { multValue } from './economy-rules.js';
 import { Economy, UPGRADES, VEHICLE_PRICES } from './economy.js';
 import { Joystick } from './input.js';
 import { Sound } from './audio.js';
@@ -28,6 +29,45 @@ const mmss = (ms) => { const s = Math.ceil(ms / 1000); return `${String(Math.flo
 const ICONS = { pneus: 'i_pneus', susp: 'i_susp', lanceur: 'i_lanceur', mult: 'i_multi' };
 // Accessoire qui apparaît ou grandit à chaque palier (toutes les 5 améliorations)
 const TIER_NAMES = { pneus: 'ROUES', susp: 'SUSPENSION', lanceur: 'MOTEUR', mult: 'AILERON' };
+// Gain de performance du palier qu'on vient d'atteindre (n = nombre d'améliorations après l'achat)
+const pc = (x) => `${Math.round(Math.abs(x) * 100)} %`;
+function tierGain(key, n) {
+  const up = { ...eco.s.up }, before = { ...up, [key]: n - 1 };
+  const a = tuning(before), b = tuning(up);
+  if (key === 'lanceur') return `DÉPART +${pc(b.vmax / a.vmax - 1)}`;
+  if (key === 'pneus') return `FROTTEMENT −${pc(1 - b.mu / a.mu)}`;
+  if (key === 'susp') return `BOSSES −${pc(1 - b.bump / a.bump)}`;
+  return `×${String(multValue(n)).replace('.', ',')} · GLISSE −8 %`;
+}
+
+// Révélation d'un palier : la voiture disparaît dans un nuage de fumée et en ressort avec son nouvel accessoire
+let reveal = null;
+function smokeReveal() {
+  if (reveal) scene.remove(reveal.cloud);
+  const cloud = new THREE.Group();
+  const m = new THREE.MeshStandardMaterial({ color: 0xF4F6F8, transparent: true, opacity: 0.95, roughness: 1, flatShading: true, depthWrite: false });
+  for (let i = 0; i < 26; i++) {
+    const p = new THREE.Mesh(new THREE.IcosahedronGeometry(0.45 + Math.random() * 0.55, 1), m);
+    const a = Math.random() * Math.PI * 2, r = Math.random() * 1.6;
+    p.position.set(Math.cos(a) * r * 0.8, 0.2 + Math.random() * 1.6, Math.sin(a) * r * 1.4);
+    p.userData.v = new THREE.Vector3(Math.cos(a) * (1 + Math.random()), 0.6 + Math.random() * 1.2, Math.sin(a) * (1 + Math.random()));
+    p.scale.setScalar(0.2); cloud.add(p);
+  }
+  cloud.position.copy(carMesh.position); scene.add(cloud);
+  reveal = { t: 0, cloud, mat: m };
+}
+function updateReveal(dt) {
+  if (!reveal) return;
+  const r = reveal; r.t += dt;
+  // 0 → 0,35 s : le nuage gonfle et cache la voiture ; puis il se dissipe pendant 1,4 s
+  const grow = Math.min(1, r.t / 0.35);
+  for (const p of r.cloud.children) { p.scale.setScalar(0.2 + 1.1 * Math.sqrt(grow) + Math.max(0, r.t - 0.35) * 0.5); if (r.t > 0.35) p.position.addScaledVector(p.userData.v, dt); }
+  r.mat.opacity = r.t < 0.35 ? 0.95 : Math.max(0, 0.95 * (1 - (r.t - 0.35) / 1.4));
+  // La voiture reste cachée sous le nuage, puis surgit avec un petit rebond
+  const k = r.t < 0.3 ? 0.001 : 1 + 0.18 * Math.exp(-(r.t - 0.3) * 5) * Math.cos((r.t - 0.3) * 18);
+  carMesh.scale.setScalar(k);
+  if (r.t > 1.8) { scene.remove(r.cloud); r.cloud.children.forEach(c => c.geometry.dispose()); r.mat.dispose(); carMesh.scale.setScalar(1); reveal = null; }
+}
 
 // ---------- rendu ----------
 const host = $('gl');
@@ -157,7 +197,7 @@ function refreshTop() {
   $('v-lives').textContent = s.lives; $('v-yellow').textContent = fmt(s.yellow); $('v-blue').textContent = fmt(s.blue); $('v-gems').textContent = s.gems;
   const nl = eco.nextLifeIn(); $('v-lifetimer').hidden = nl <= 0; $('v-lifetimer').textContent = mmss(nl);
 }
-function refreshHome() {
+function refreshHome(light = false) {
   const s = eco.s;
   refreshTop();
   $('v-level').textContent = `NIVEAU ${s.level}`;
@@ -169,6 +209,8 @@ function refreshHome() {
   $('v-boostlvl').textContent = s.booster;
   $('v-boosttxt').textContent = s.booster === 0 ? 'BOOSTER' : `BOOSTER ${String(bt).replace('.', ',')} s`;
   $('b-booster').disabled = s.gems < eco.boosterCost();
+  // Rafraîchissement périodique : seulement les compteurs, sans reconstruire les cartes (le message de palier resterait effacé)
+  if (light) return;
   const cards = $('cards'); cards.innerHTML = '';
   for (const u of UPGRADES) {
     const lvl = s.up[u.key], cost = eco.cost(u.key);
@@ -183,9 +225,10 @@ function refreshHome() {
       if (!eco.buy(u.key)) return;
       // Nouveau palier visuel (toutes les 5 améliorations) : fanfare et carte qui s'illumine
       const tierUp = s.up[u.key] % A.TIER_STEP === 0 && A.tierOf(s.up[u.key]) <= 5 && s.up[u.key] <= 5 * A.TIER_STEP;
-      tierUp ? sfx.win() : sfx.buy();
+      tierUp ? (sfx.poof(), setTimeout(() => sfx.win(), 320)) : sfx.buy();
       buildCarMesh(); placeCarOnLauncher(); refreshHome();
-      if (tierUp) { const c = $('cards').children[UPGRADES.indexOf(u)]; if (c) { c.classList.add('tierup'); c.insertAdjacentHTML('beforeend', `<span class="tiertag">${TIER_NAMES[u.key]} ${A.tierOf(s.up[u.key])} !</span>`); } }
+      if (tierUp) smokeReveal();
+      if (tierUp) { const c = $('cards').children[UPGRADES.indexOf(u)]; if (c) { c.classList.add('tierup'); c.insertAdjacentHTML('beforeend', `<span class="tiertag">${TIER_NAMES[u.key]} ${A.tierOf(s.up[u.key])} !<small>${tierGain(u.key, s.up[u.key])}</small></span>`); } }
     });
     cards.appendChild(el);
   }
@@ -433,6 +476,7 @@ function frame(now) {
   const yaw = car.air ? 0 : Math.max(-0.14, Math.min(0.14, -car.vx * 0.018 - (state === 'home' ? 0 : camAim * 0.3)));
   carMesh.rotation.set(car.pitch, yaw, car.roll);
   if (state === 'launch' && holding) carMesh.position.x += Math.sin(clock * 60) * 0.02 * (pct / 100);
+  updateReveal(dt);
 
   // Caméra
   const y0 = world.launcherTop;
@@ -476,7 +520,7 @@ function frame(now) {
   // Virages : la piste se courbe à l'écran devant la voiture
   updateBend(layout, -car.z);
 
-  uiTimer -= dt; if (uiTimer <= 0) { uiTimer = 0.5; eco.tick(); if (state === 'home') refreshHome(); else refreshTop(); }
+  uiTimer -= dt; if (uiTimer <= 0) { uiTimer = 0.5; eco.tick(); if (state === 'home') refreshHome(true); else refreshTop(); }
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
